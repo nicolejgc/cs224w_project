@@ -1,0 +1,3 @@
+[submodule "dar"]
+	path = dar
+	url = https://github.com/DavidJGChen/dual_alg_reasoning_fork.git
