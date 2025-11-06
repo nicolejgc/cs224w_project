@@ -12,4 +12,6 @@ wheels/
 **/.DS_Store
 **/__pycache__
 
+# Generated training sets
 dar/data/
+./data/
