@@ -21,7 +21,7 @@ def a_star(A: _Array, h: _Array, s: int, t: int, max_iter=5000) -> _Out:
     """A* search algorithm (Hart et al., 1968)"""
 
     chex.assert_rank(A, 2)
-    probes = probing.initialize(SPECS['a_star'])
+    probes = probing.initialize(SPECS["a_star"])
 
     A_pos = np.arange(A.shape[0])
 
@@ -29,12 +29,13 @@ def a_star(A: _Array, h: _Array, s: int, t: int, max_iter=5000) -> _Out:
         probes,
         _Stage.INPUT,
         next_probe={
-            'pos': np.copy(A_pos) * 1.0 / A.shape[0],
-            's': probing.mask_one(s, A.shape[0]),
-            't': probing.mask_one(t, A.shape[0]),
-            'A': np.copy(A),
-            'adj': probing.graph(np.copy(A))
-        })
+            "pos": np.copy(A_pos) * 1.0 / A.shape[0],
+            "s": probing.mask_one(s, A.shape[0]),
+            "t": probing.mask_one(t, A.shape[0]),
+            "A": np.copy(A),
+            "adj": probing.graph(np.copy(A)),
+        },
+    )
 
     d = np.zeros(A.shape[0])
     mark = np.zeros(A.shape[0])
@@ -49,16 +50,16 @@ def a_star(A: _Array, h: _Array, s: int, t: int, max_iter=5000) -> _Out:
         probes,
         _Stage.HINT,
         next_probe={
-            'pi_h': np.copy(pi),
-            'd': np.copy(d),
-            'f': np.copy(f),
-            'mark': np.copy(mark),
-            'in_queue': np.copy(in_queue),
-            'u': probing.mask_one(s, A.shape[0])
-        })
+            "pi_h": np.copy(pi),
+            "d": np.copy(d),
+            "f": np.copy(f),
+            "mark": np.copy(mark),
+            "in_queue": np.copy(in_queue),
+            "u": probing.mask_one(s, A.shape[0]),
+        },
+    )
 
     while in_queue.any():
-
         u = np.argsort(f + (1.0 - in_queue) * 1e9)[0]  # drop-in for extract-min
 
         if in_queue[u] == 0 or u == t:
@@ -80,15 +81,16 @@ def a_star(A: _Array, h: _Array, s: int, t: int, max_iter=5000) -> _Out:
             probes,
             _Stage.HINT,
             next_probe={
-                'pi_h': np.copy(pi),
-                'd': np.copy(d),
-                'f': np.copy(f),
-                'mark': np.copy(mark),
-                'in_queue': np.copy(in_queue),
-                'u': probing.mask_one(u, A.shape[0])
-            })
+                "pi_h": np.copy(pi),
+                "d": np.copy(d),
+                "f": np.copy(f),
+                "mark": np.copy(mark),
+                "in_queue": np.copy(in_queue),
+                "u": probing.mask_one(u, A.shape[0]),
+            },
+        )
 
-    probing.push(probes, _Stage.OUTPUT, next_probe={'pi': np.copy(pi)})
+    probing.push(probes, _Stage.OUTPUT, next_probe={"pi": np.copy(pi)})
     probing.finalize(probes)
 
     return pi, probes
@@ -98,18 +100,19 @@ def dijkstra(A: _Array, s: int, t: int, early_stop: bool = False) -> _Out:
     """Dijkstra's single-source shortest path (Dijkstra, 1959)."""
 
     chex.assert_rank(A, 2)
-    probes = probing.initialize(SPECS['dijkstra'])
+    probes = probing.initialize(SPECS["dijkstra"])
     A_pos = np.arange(A.shape[0])
     probing.push(
         probes,
         _Stage.INPUT,
         next_probe={
-            'pos': np.copy(A_pos) * 1.0 / A.shape[0],
-            's': probing.mask_one(s, A.shape[0]),
-            't': probing.mask_one(t, A.shape[0]),
-            'A': np.copy(A),
-            'adj': probing.graph(np.copy(A))
-        })
+            "pos": np.copy(A_pos) * 1.0 / A.shape[0],
+            "s": probing.mask_one(s, A.shape[0]),
+            "t": probing.mask_one(t, A.shape[0]),
+            "A": np.copy(A),
+            "adj": probing.graph(np.copy(A)),
+        },
+    )
 
     d = np.zeros(A.shape[0])
     mark = np.zeros(A.shape[0])
@@ -122,12 +125,13 @@ def dijkstra(A: _Array, s: int, t: int, early_stop: bool = False) -> _Out:
         probes,
         _Stage.HINT,
         next_probe={
-            'pi_h': np.copy(pi),
-            'd': np.copy(d),
-            'mark': np.copy(mark),
-            'in_queue': np.copy(in_queue),
-            'u': probing.mask_one(s, A.shape[0])
-        })
+            "pi_h": np.copy(pi),
+            "d": np.copy(d),
+            "mark": np.copy(mark),
+            "in_queue": np.copy(in_queue),
+            "u": probing.mask_one(s, A.shape[0]),
+        },
+    )
 
     for _ in range(A.shape[0]):
         u = np.argsort(d + (1.0 - in_queue) * 1e9)[0]  # drop-in for extract-min
@@ -148,14 +152,15 @@ def dijkstra(A: _Array, s: int, t: int, early_stop: bool = False) -> _Out:
             probes,
             _Stage.HINT,
             next_probe={
-                'pi_h': np.copy(pi),
-                'd': np.copy(d),
-                'mark': np.copy(mark),
-                'in_queue': np.copy(in_queue),
-                'u': probing.mask_one(u, A.shape[0])
-            })
+                "pi_h": np.copy(pi),
+                "d": np.copy(d),
+                "mark": np.copy(mark),
+                "in_queue": np.copy(in_queue),
+                "u": probing.mask_one(u, A.shape[0]),
+            },
+        )
 
-    probing.push(probes, _Stage.OUTPUT, next_probe={'pi': np.copy(pi)})
+    probing.push(probes, _Stage.OUTPUT, next_probe={"pi": np.copy(pi)})
     probing.finalize(probes)
 
     return pi, probes
@@ -165,26 +170,21 @@ def max_flow_lp(adj: _Array, capacity: _Array, s: int, t: int):
     """Max flow LP formulation."""
 
     chex.assert_rank(adj, 2)
-    probes = probing.initialize(SPECS['max_flow_lp'])
+    probes = probing.initialize(SPECS["max_flow_lp"])
     A_pos = np.arange(adj.shape[0])
     probing.push(
         probes,
         _Stage.INPUT,
         next_probe={
-            'pos': np.copy(A_pos) * 1.0 / adj.shape[0],
-            's': probing.mask_one(s, adj.shape[0]),
-            't': probing.mask_one(t, adj.shape[0]),
-            'A': np.copy(capacity),
-            'adj': probing.graph(np.copy(adj))
-        })
-
-    probing.push(
-        probes,
-        _Stage.OUTPUT,
-        next_probe={
-            'unsup_lp_flow': np.empty(1)
-        }
+            "pos": np.copy(A_pos) * 1.0 / adj.shape[0],
+            "s": probing.mask_one(s, adj.shape[0]),
+            "t": probing.mask_one(t, adj.shape[0]),
+            "A": np.copy(capacity),
+            "adj": probing.graph(np.copy(adj)),
+        },
     )
+
+    probing.push(probes, _Stage.OUTPUT, next_probe={"unsup_lp_flow": np.empty(1)})
 
     probing.finalize(probes)
 
@@ -195,25 +195,26 @@ def min_cut_lp(adj: _Array, capacity: _Array, s: int, t: int):
     """Min-Cut LP formulation."""
 
     chex.assert_rank(adj, 2)
-    probes = probing.initialize(SPECS['min_cut_lp'])
+    probes = probing.initialize(SPECS["min_cut_lp"])
     A_pos = np.arange(adj.shape[0])
     probing.push(
         probes,
         _Stage.INPUT,
         next_probe={
-            'pos': np.copy(A_pos) * 1.0 / adj.shape[0],
-            's': probing.mask_one(s, adj.shape[0]),
-            't': probing.mask_one(t, adj.shape[0]),
-            'A': np.copy(capacity),
-            'adj': probing.graph(np.copy(adj))
-        })
+            "pos": np.copy(A_pos) * 1.0 / adj.shape[0],
+            "s": probing.mask_one(s, adj.shape[0]),
+            "t": probing.mask_one(t, adj.shape[0]),
+            "A": np.copy(capacity),
+            "adj": probing.graph(np.copy(adj)),
+        },
+    )
 
     probing.push(
         probes,
         _Stage.OUTPUT,
         next_probe={
-            's': np.array([[1, 0]]).repeat(adj.shape[0], axis=0),
-        }
+            "s": np.array([[1, 0]]).repeat(adj.shape[0], axis=0),
+        },
     )
 
     probing.finalize(probes)
@@ -222,28 +223,28 @@ def min_cut_lp(adj: _Array, capacity: _Array, s: int, t: int):
 
 
 def max_flow_min_cut_lp(adj: _Array, capacity: _Array, s: int, t: int):
-
     chex.assert_rank(adj, 2)
-    probes = probing.initialize(SPECS['max_flow_min_cut_lp'])
+    probes = probing.initialize(SPECS["max_flow_min_cut_lp"])
     A_pos = np.arange(adj.shape[0])
     probing.push(
         probes,
         _Stage.INPUT,
         next_probe={
-            'pos': np.copy(A_pos) * 1.0 / adj.shape[0],
-            's': probing.mask_one(s, adj.shape[0]),
-            't': probing.mask_one(t, adj.shape[0]),
-            'A': np.copy(capacity),
-            'adj': probing.graph(np.copy(adj))
-        })
+            "pos": np.copy(A_pos) * 1.0 / adj.shape[0],
+            "s": probing.mask_one(s, adj.shape[0]),
+            "t": probing.mask_one(t, adj.shape[0]),
+            "A": np.copy(capacity),
+            "adj": probing.graph(np.copy(adj)),
+        },
+    )
 
     probing.push(
         probes,
         _Stage.OUTPUT,
         next_probe={
-            'unsup_lp_flow': np.empty(1),
-            's': np.array([[1, 0]]).repeat(adj.shape[0], axis=0),
-        }
+            "unsup_lp_flow": np.empty(1),
+            "s": np.array([[1, 0]]).repeat(adj.shape[0], axis=0),
+        },
     )
 
     probing.finalize(probes)
@@ -274,14 +275,15 @@ def _ff_impl(A: _Array, s: int, t: int, probes, w):
         probes,
         _Stage.HINT,
         next_probe={
-            'mask': np.copy(msk),
-            'd': np.copy(d),
-            'pi_h': np.copy(pi),
-            'f_h': np.copy(f),
-            'df': np.copy(df),
-            'c_h': np.copy(C),
-            '__is_bfs_op': np.copy([1])
-        })
+            "mask": np.copy(msk),
+            "d": np.copy(d),
+            "pi_h": np.copy(pi),
+            "f_h": np.copy(f),
+            "df": np.copy(df),
+            "c_h": np.copy(C),
+            "__is_bfs_op": np.copy([1]),
+        },
+    )
 
     while True:
         for _ in range(A.shape[0]):
@@ -299,14 +301,15 @@ def _ff_impl(A: _Array, s: int, t: int, probes, w):
                 probes,
                 _Stage.HINT,
                 next_probe={
-                    'pi_h': np.copy(pi),
-                    'd': np.copy(prev_d),
-                    'mask': np.copy(msk),
-                    'f_h': np.copy(f),
-                    'df': np.copy(df),
-                    'c_h': np.copy(C),
-                    '__is_bfs_op': np.copy([1])
-                })
+                    "pi_h": np.copy(pi),
+                    "d": np.copy(prev_d),
+                    "mask": np.copy(msk),
+                    "f_h": np.copy(f),
+                    "df": np.copy(df),
+                    "c_h": np.copy(C),
+                    "__is_bfs_op": np.copy([1]),
+                },
+            )
 
             if np.all(d == prev_d):
                 break
@@ -314,10 +317,7 @@ def _ff_impl(A: _Array, s: int, t: int, probes, w):
         if pi[t] == t:
             break
 
-        df = min([
-            A[u, v] - f[u, v]
-            for u, v in reverse(pi)
-        ])
+        df = min([A[u, v] - f[u, v] for u, v in reverse(pi)])
 
         for u, v in reverse(pi):
             f[u, v] += df
@@ -332,22 +332,22 @@ def _ff_impl(A: _Array, s: int, t: int, probes, w):
             probes,
             _Stage.HINT,
             next_probe={
-                'pi_h': np.copy(pi),
-                'd': np.copy(d),
-                'mask': np.copy(msk),
-                'f_h': np.copy(f),
-                'df': np.copy(df),
-                'c_h': np.copy(C),
-                '__is_bfs_op': np.array([0])
-            })
+                "pi_h": np.copy(pi),
+                "d": np.copy(d),
+                "mask": np.copy(msk),
+                "f_h": np.copy(f),
+                "df": np.copy(df),
+                "c_h": np.copy(C),
+                "__is_bfs_op": np.array([0]),
+            },
+        )
 
     return f, probes
 
 
 def ford_fulkerson(A: _Array, s: int, t: int):
-
     chex.assert_rank(A, 2)
-    probes = probing.initialize(SPECS['ford_fulkerson'])
+    probes = probing.initialize(SPECS["ford_fulkerson"])
     A_pos = np.arange(A.shape[0])
 
     rng = np.random.default_rng(0)
@@ -359,23 +359,18 @@ def ford_fulkerson(A: _Array, s: int, t: int):
         probes,
         _Stage.INPUT,
         next_probe={
-            'pos': np.copy(A_pos) * 1.0 / A.shape[0],
-            's': probing.mask_one(s, A.shape[0]),
-            't': probing.mask_one(t, A.shape[0]),
-            'A': np.copy(A),
-            'adj': probing.graph(np.copy(A)),
-            'w': np.copy(w),
-        })
+            "pos": np.copy(A_pos) * 1.0 / A.shape[0],
+            "s": probing.mask_one(s, A.shape[0]),
+            "t": probing.mask_one(t, A.shape[0]),
+            "A": np.copy(A),
+            "adj": probing.graph(np.copy(A)),
+            "w": np.copy(w),
+        },
+    )
 
     f, probes = _ff_impl(A, s, t, probes, w)
 
-    probing.push(
-        probes,
-        _Stage.OUTPUT,
-        next_probe={
-            'f': np.copy(f)
-        }
-    )
+    probing.push(probes, _Stage.OUTPUT, next_probe={"f": np.copy(f)})
     probing.finalize(probes)
 
     return f, probes
@@ -383,7 +378,7 @@ def ford_fulkerson(A: _Array, s: int, t: int):
 
 def ford_fulkerson_mincut(A: _Array, s: int, t: int):
     chex.assert_rank(A, 2)
-    probes = probing.initialize(SPECS['ford_fulkerson_mincut'])
+    probes = probing.initialize(SPECS["ford_fulkerson_mincut"])
     A_pos = np.arange(A.shape[0])
 
     rng = np.random.default_rng(0)
@@ -395,23 +390,19 @@ def ford_fulkerson_mincut(A: _Array, s: int, t: int):
         probes,
         _Stage.INPUT,
         next_probe={
-            'pos': np.copy(A_pos) * 1.0 / A.shape[0],
-            's': probing.mask_one(s, A.shape[0]),
-            't': probing.mask_one(t, A.shape[0]),
-            'A': np.copy(A),
-            'adj': probing.graph(np.copy(A)),
-            'w': np.copy(w)
-        })
+            "pos": np.copy(A_pos) * 1.0 / A.shape[0],
+            "s": probing.mask_one(s, A.shape[0]),
+            "t": probing.mask_one(t, A.shape[0]),
+            "A": np.copy(A),
+            "adj": probing.graph(np.copy(A)),
+            "w": np.copy(w),
+        },
+    )
 
     f, probes = _ff_impl(A, s, t, probes, w)
 
     probing.push(
-        probes,
-        _Stage.OUTPUT,
-        next_probe={
-            'f': np.copy(f),
-            'c': _minimum_cut(A, s, t)
-        }
+        probes, _Stage.OUTPUT, next_probe={"f": np.copy(f), "c": _minimum_cut(A, s, t)}
     )
 
     probing.finalize(probes)
@@ -422,9 +413,10 @@ def ford_fulkerson_mincut(A: _Array, s: int, t: int):
 def _minimum_cut(A, s, t):
     C = np.zeros((A.shape[0], 2))
 
-    graph = nx.from_numpy_matrix(A)
-    nx.set_edge_attributes(graph, {(i, j): A[i, j] for i, j in zip(*A.nonzero())},
-                           name='capacity')
+    graph = nx.from_numpy_array(A)
+    nx.set_edge_attributes(
+        graph, {(i, j): A[i, j] for i, j in zip(*A.nonzero())}, name="capacity"
+    )
 
     _, cuts = nx.minimum_cut(graph, s, t)
 
@@ -445,6 +437,7 @@ def _masked_array(a):
 
 # TEST PURPOSE
 
+
 def ek_bfs(A: _Array, s: int, t: int):
     chex.assert_rank(A, 2)
     A_pos = np.arange(A.shape[0])
@@ -459,36 +452,28 @@ def ek_bfs(A: _Array, s: int, t: int):
             u = pi[u]
 
     while True:
-        probes = probing.initialize(SPECS['ek_bfs'])
+        probes = probing.initialize(SPECS["ek_bfs"])
         probing.push(
             probes,
             _Stage.INPUT,
             next_probe={
-                'pos': np.copy(A_pos) * 1.0 / A.shape[0],
-                's': probing.mask_one(s, A.shape[0]),
-                't': probing.mask_one(t, A.shape[0]),
-                'A': np.copy(A),
-                'adj': probing.graph(np.copy(A)),
-                'f_h': np.copy(f)
-            })
+                "pos": np.copy(A_pos) * 1.0 / A.shape[0],
+                "s": probing.mask_one(s, A.shape[0]),
+                "t": probing.mask_one(t, A.shape[0]),
+                "A": np.copy(A),
+                "adj": probing.graph(np.copy(A)),
+                "f_h": np.copy(f),
+            },
+        )
 
         pi, probes = _bfs_ek_impl(A, s, f, probes)
 
-        probing.push(
-            probes,
-            _Stage.OUTPUT,
-            next_probe={
-                'pi': np.copy(pi)
-            }
-        )
+        probing.push(probes, _Stage.OUTPUT, next_probe={"pi": np.copy(pi)})
 
         if pi[t] == t:
             break
 
-        df = min([
-            A[u, v] - f[u, v]
-            for u, v in reverse(pi)
-        ])
+        df = min([A[u, v] - f[u, v] for u, v in reverse(pi)])
 
         for u, v in reverse(pi):
             f[u, v] += df
@@ -504,7 +489,6 @@ def ek_bfs(A: _Array, s: int, t: int):
 
 
 def _bfs_ek_impl(A: _Array, s: int, f: int, probes):
-
     reach = np.zeros(A.shape[0])
     reach[s] = 1
     pi = np.arange(A.shape[0])
@@ -513,9 +497,10 @@ def _bfs_ek_impl(A: _Array, s: int, f: int, probes):
         probes,
         _Stage.HINT,
         next_probe={
-            'reach_h': np.copy(reach),
-            'pi_h': np.copy(pi),
-        })
+            "reach_h": np.copy(reach),
+            "pi_h": np.copy(pi),
+        },
+    )
 
     while True:
         prev_reach = np.copy(reach)
@@ -531,9 +516,10 @@ def _bfs_ek_impl(A: _Array, s: int, f: int, probes):
             probes,
             _Stage.HINT,
             next_probe={
-                'reach_h': np.copy(reach),
-                'pi_h': np.copy(pi),
-            })
+                "reach_h": np.copy(reach),
+                "pi_h": np.copy(pi),
+            },
+        )
 
         if np.all(reach == prev_reach):
             break
