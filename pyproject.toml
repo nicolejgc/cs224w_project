@@ -4,4 +4,15 @@ version = "0.1.0"
 description = "We are trying hard to make this work I swear"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "dm-clrs",
+    "flax>=0.12.0",
+    "norm",
+    "numpy>=2.3.4",
+    "torch>=2.9.0",
+    "typer>=0.20.0",
+]
+
+[tool.uv.sources]
+norm = { git = "https://github.com/danilonumeroso/norm.git" }
+dm-clrs = { git = "https://github.com/google-deepmind/clrs.git" }
