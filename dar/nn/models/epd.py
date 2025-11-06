@@ -25,37 +25,42 @@ _DataPoint = clrs.DataPoint
 
 
 class EncodeProcessDecode(clrs.Model):
-    def __init__(self,
-                 spec: _Spec,
-                 num_hidden: int,
-                 optim_fn: Callable,
-                 dummy_trajectory: _Feedback,
-                 alpha: float,
-                 processor: str,
-                 aggregator: str,
-                 no_feats: List = ['adj'],
-                 add_noise: bool = False,
-                 decode_hints: bool = True,
-                 encode_hints: bool = True,
-                 max_steps: int = None):
+    def __init__(
+        self,
+        spec: _Spec,
+        num_hidden: int,
+        optim_fn: Callable,
+        dummy_trajectory: _Feedback,
+        alpha: float,
+        processor: str,
+        aggregator: str,
+        no_feats: List = ["adj"],
+        add_noise: bool = False,
+        decode_hints: bool = True,
+        encode_hints: bool = True,
+        max_steps: int | None = None,
+    ):
         super().__init__(spec=spec)
+        self.spec = spec
 
-        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        self.net_ = EncodeProcessDecode_Impl(spec=spec,
-                                             dummy_trajectory=dummy_trajectory,
-                                             num_hidden=num_hidden,
-                                             encode_hints=encode_hints,
-                                             decode_hints=decode_hints,
-                                             processor=processor,
-                                             aggregator=aggregator,
-                                             max_steps=max_steps,
-                                             no_feats=no_feats,
-                                             add_noise=add_noise,
-                                             device=self.device)
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.net_ = EncodeProcessDecode_Impl(
+            spec=spec,
+            dummy_trajectory=dummy_trajectory,
+            num_hidden=num_hidden,
+            encode_hints=encode_hints,
+            decode_hints=decode_hints,
+            processor=processor,
+            aggregator=aggregator,
+            max_steps=max_steps,
+            no_feats=no_feats,
+            add_noise=add_noise,
+            device=self.device,
+        )
 
         self.optimizer = optim_fn(self.net_.parameters())
         self.alpha = alpha
-        self.no_feats = lambda x: x in no_feats or x.startswith('__')
+        self.no_feats = lambda x: x in no_feats or x.startswith("__")
         self.encode_hints = encode_hints
         self.decode_hints = decode_hints
 
@@ -79,12 +84,16 @@ class EncodeProcessDecode(clrs.Model):
                 if self.no_feats(truth.name):
                     continue
                 n_hints += 1
-                hint_loss += loss.hint_loss(hint_preds, truth, feedback, self.alpha, self.device)
+                hint_loss += loss.hint_loss(
+                    hint_preds, truth, feedback, self.alpha, self.device
+                )
 
             total_loss += hint_loss / n_hints
 
         for truth in feedback.outputs:
-            total_loss += loss.output_loss(preds, truth, feedback, self.alpha, self.device)
+            total_loss += loss.output_loss(
+                preds, truth, feedback, self.alpha, self.device
+            )
 
         total_loss.backward()
 
@@ -99,7 +108,7 @@ class EncodeProcessDecode(clrs.Model):
     def predict(self, features: clrs.Features) -> Result:
         self.net_.eval()
         raw_preds, aux = self.net_(features)
-        preds = decoders.postprocess(raw_preds, self._spec)
+        preds = decoders.postprocess(raw_preds, self.spec)
 
         return preds, (raw_preds, aux)
 
@@ -112,31 +121,39 @@ class EncodeProcessDecode(clrs.Model):
             if self.no_feats(truth.name):
                 continue
             n_hints += 1
-            losses["aux_" + truth.name] = loss.hint_loss(aux_preds, truth, feedback, self.alpha, self.device).cpu().item()
+            losses["aux_" + truth.name] = (
+                loss.hint_loss(aux_preds, truth, feedback, self.alpha, self.device)
+                .cpu()
+                .item()
+            )
             total_loss += losses["aux_" + truth.name]
 
         total_loss /= n_hints
 
         for truth in feedback.outputs:
-            total_loss += loss.output_loss(preds, truth, feedback, self.alpha, self.device)
+            total_loss += loss.output_loss(
+                preds, truth, feedback, self.alpha, self.device
+            )
 
         return losses, total_loss.item()
 
 
 class EncodeProcessDecode_Impl(Module):
-    def __init__(self,
-                 spec: _Spec,
-                 dummy_trajectory: _Feedback,
-                 num_hidden: int,
-                 encode_hints: bool,
-                 decode_hints: bool,
-                 processor: str,
-                 aggregator: str,
-                 no_feats: List,
-                 add_noise: bool = False,
-                 bias: bool = True,
-                 max_steps: int = None,
-                 device: str = 'cpu'):
+    def __init__(
+        self,
+        spec: _Spec,
+        dummy_trajectory: _Feedback,
+        num_hidden: int,
+        encode_hints: bool,
+        decode_hints: bool,
+        processor: str,
+        aggregator: str,
+        no_feats: List,
+        add_noise: bool = False,
+        bias: bool = True,
+        max_steps: int | None = None,
+        device: str = "cpu",
+    ):
         super().__init__()
 
         self.num_hidden = num_hidden
@@ -148,7 +165,7 @@ class EncodeProcessDecode_Impl(Module):
 
         self.max_steps = max_steps
 
-        self.no_feats = lambda x: x in no_feats or x.startswith('__') # noqa
+        self.no_feats = lambda x: x in no_feats or x.startswith("__")  # noqa
 
         for inp in dummy_trajectory.features.inputs:
             if self.no_feats(inp.name):
@@ -157,7 +174,8 @@ class EncodeProcessDecode_Impl(Module):
             self.encoders[inp.name] = encoders.Encoder(
                 in_features=_expand(inp.data, inp.location).shape[-1],
                 out_features=self.num_hidden,
-                bias=False)
+                bias=False,
+            )
 
         if encode_hints:
             for hint in dummy_trajectory.features.hints:
@@ -166,24 +184,25 @@ class EncodeProcessDecode_Impl(Module):
                 self.encoders[hint.name] = encoders.Encoder(
                     in_features=_expand(hint.data[0], hint.location).shape[-1],
                     out_features=self.num_hidden,
-                    bias=False)
+                    bias=False,
+                )
 
-        self.process = processors.PROCESSORS[processor](num_hidden=num_hidden,
-                                                        aggregator=aggregator,
-                                                        activation=relu)
+        self.process = processors.PROCESSORS[processor](
+            num_hidden=num_hidden, aggregator=aggregator, activation=relu
+        )
 
         if decode_hints:
             for hint in dummy_trajectory.features.hints:
                 if self.no_feats(hint.name):
                     continue
-                self.hint_decoders[hint.name] = decoders.new_decoder(spec[hint.name],
-                                                                     num_hidden,
-                                                                     num_classes=hint.data.shape[-1])
+                self.hint_decoders[hint.name] = decoders.new_decoder(
+                    spec[hint.name], num_hidden, num_classes=hint.data.shape[-1]
+                )
 
         for out in dummy_trajectory.outputs:
-            self.decoders[out.name] = decoders.new_decoder(spec[out.name],
-                                                           num_hidden,
-                                                           num_classes=out.data.shape[-1])
+            self.decoders[out.name] = decoders.new_decoder(
+                spec[out.name], num_hidden, num_classes=out.data.shape[-1]
+            )
 
         self.device = device
         self.spec = spec
@@ -194,7 +213,9 @@ class EncodeProcessDecode_Impl(Module):
         # ~~~ init ~~~
         batch_size, num_nodes = _dimensions(trajectories[0])
         x = torch.zeros((batch_size, num_nodes, self.num_hidden)).to(self.device)
-        edge_attr = torch.zeros((batch_size, num_nodes, num_nodes, self.num_hidden)).to(self.device)
+        edge_attr = torch.zeros((batch_size, num_nodes, num_nodes, self.num_hidden)).to(
+            self.device
+        )
 
         # ~~~ encode ~~~
         for trajectory in trajectories:
@@ -220,23 +241,15 @@ class EncodeProcessDecode_Impl(Module):
         else:
             hint_preds = {
                 name: decoders.decode_from_latents(
-                    name,
-                    self.spec[name],
-                    self.hint_decoders[name],
-                    h_t,
-                    adj,
-                    edge_attr)
+                    name, self.spec[name], self.hint_decoders[name], h_t, adj, edge_attr
+                )
                 for name in self.hint_decoders.keys()
             }
 
         output_preds = {
             name: decoders.decode_from_latents(
-                name,
-                self.spec[name],
-                self.decoders[name],
-                h_t,
-                adj,
-                edge_attr)
+                name, self.spec[name], self.decoders[name], h_t, adj, edge_attr
+            )
             for name in self.decoders.keys()
         }
 
@@ -246,7 +259,9 @@ class EncodeProcessDecode_Impl(Module):
         output_preds = {}
         hint_preds = []
 
-        num_steps = self.max_steps if self.max_steps else features.hints[0].data.shape[0] - 1
+        num_steps = (
+            self.max_steps if self.max_steps else features.hints[0].data.shape[0] - 1
+        )
         batch_size, num_nodes = _dimensions(features.inputs)
 
         h = torch.zeros((batch_size, num_nodes, self.num_hidden)).to(self.device)
@@ -255,7 +270,11 @@ class EncodeProcessDecode_Impl(Module):
         A = edge_attr_mat(features).to(self.device)
 
         for i in range(num_steps):
-            cur_hint = _hints_i(features.hints, i) if self.training or i == 0 else _own_hints_i(hint_preds[-1], self.spec, features, i)
+            cur_hint = (
+                _hints_i(features.hints, i)
+                if self.training or i == 0
+                else _own_hints_i(hint_preds[-1], self.spec, features, i)
+            )
 
             trajectories = [features.inputs]
             if self.encode_hints:
@@ -277,7 +296,9 @@ class EncodeProcessDecode_Impl(Module):
                     output_preds[name] = cand[name]
                 else:
                     is_not_done = is_not_done_broadcast(features.lengths, i, cand[name])
-                    output_preds[name] = is_not_done * cand[name] + \
-                        (1.0 - is_not_done) * output_preds[name]
+                    output_preds[name] = (
+                        is_not_done * cand[name]
+                        + (1.0 - is_not_done) * output_preds[name]
+                    )
 
         return output_preds, hint_preds
