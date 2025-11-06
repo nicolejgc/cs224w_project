@@ -1,0 +1,7 @@
+[project]
+name = "cs224w_project"
+version = "0.1.0"
+description = "We are trying hard to make this work I swear"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
