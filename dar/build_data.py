@@ -143,7 +143,7 @@ def main(
         print("[avg] traj len:", extras[split]["avg"])
         print("[max] traj len:", extras[split]["max"])
 
-        dump(data, save_path / f"{split}_{alg}.pkl")
+        dump(data, save_path / f"{split}_{alg.value}.pkl")
 
     dump(dict(seed=seed, graph_density=probs, **extras), save_path / "config.json")
 
