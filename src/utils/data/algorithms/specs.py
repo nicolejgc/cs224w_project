@@ -1,0 +1,26 @@
+import clrs
+import types
+
+_Stage = clrs.Stage
+_Location = clrs.Location
+_Type = clrs.Type
+
+SPECS = types.MappingProxyType({
+    **clrs._src.specs.SPECS,
+    'ford_fulkerson': {
+        'pos': (_Stage.INPUT, _Location.NODE, _Type.SCALAR),
+        's': (_Stage.INPUT, _Location.NODE, _Type.MASK_ONE),
+        't': (_Stage.INPUT, _Location.NODE, _Type.MASK_ONE),
+        'A': (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),
+        'adj': (_Stage.INPUT, _Location.EDGE, _Type.MASK),
+        'w': (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),
+        'mask': (_Stage.HINT, _Location.NODE, _Type.MASK),
+        'pi_h': (_Stage.HINT, _Location.NODE, _Type.POINTER),
+        '__is_bfs_op': (_Stage.HINT, _Location.GRAPH, _Type.MASK),
+        'f_h': (_Stage.HINT, _Location.EDGE, _Type.SCALAR),
+        'f': (_Stage.OUTPUT, _Location.EDGE, _Type.SCALAR)
+    }
+})
+
+ALGS = [*clrs._src.specs.CLRS_30_ALGS,
+        'ford_fulkerson']
