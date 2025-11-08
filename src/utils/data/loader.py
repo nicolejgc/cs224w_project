@@ -3,7 +3,7 @@ import numpy as np
 import torch
 
 from .helpers import batch_hints_helper
-from algorithms.specs import SPECS
+from .algorithms.specs import SPECS
 from clrs._src.probing import split_stages
 from norm.io import load
 from pathlib import Path
