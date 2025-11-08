@@ -247,20 +247,16 @@ class MFNet_Impl(torch.nn.Module):
                 hint_preds[name][idx_f] = h_preds_fnet[name][idx_f]
 
         # attempt to reset h_bfs
-        reset = torch.zeros_like(h_bfs)
-        h_bfs = h_bfs.masked_scatter(
-            _expand_to(is_bfs_op.bool(), len(h_bfs.shape)), reset
-        )
+        mask_1d = is_bfs_op.flatten().bool()
+        mask_expanded = _expand_to(is_bfs_op.bool(), len(h_bfs.shape))
+        h_bfs = h_bfs.masked_fill(mask_expanded, 0)
 
-        assert h_bfs[is_bfs_op.flatten().nonzero()].sum().item() == 0
+        assert h_bfs[mask_1d].sum().item() == 0
 
         for name in cand.keys():
             n_dims = len(cand[name].shape)
-            mask = torch.zeros_like(cand[name])
-            mask.fill_(clrs.OutputClass.MASKED)
-            cand[name] = cand[name].masked_scatter(
-                _expand_to(is_bfs_op.bool(), n_dims), mask
-            )
+            mask = _expand_to(is_bfs_op.bool(), n_dims)
+            cand[name] = cand[name].masked_fill(mask, clrs.OutputClass.MASKED)
 
         return cand, h_bfs, hint_preds, hiddens
 

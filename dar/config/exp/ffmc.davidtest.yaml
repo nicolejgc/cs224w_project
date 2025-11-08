@@ -1,6 +1,6 @@
 algorithm: ford_fulkerson_mincut
 runs:
-  num_runs: 5
+  num_runs: 1
   hp_space: ff_mc_small
   batch_size: 32
   early_stop: true
