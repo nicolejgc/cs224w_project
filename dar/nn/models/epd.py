@@ -43,7 +43,12 @@ class EncodeProcessDecode(clrs.Model):
         super().__init__(spec=spec)
         self.spec = spec
 
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cpu"
+        if torch.cuda.is_available():
+            self.device = "cuda"
+        elif torch.mps.is_available():
+            self.device = "mps"
+
         self.net_ = EncodeProcessDecode_Impl(
             spec=spec,
             dummy_trajectory=dummy_trajectory,

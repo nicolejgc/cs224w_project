@@ -246,6 +246,8 @@ def test(
 
         runs.append(predict(feedback.features, feedback.outputs, i))
         torch.cuda.empty_cache()
+        torch.mps.empty_cache()
+
     dump(runs, test_path / f"scores.{test_set}.json")
 
     for key in runs[0]:
