@@ -146,6 +146,45 @@ def ford_fulkerson(A: _Array, s: int, t: int):
 
     return f, probes
 
+
+def ford_fulkerson_mincut(A: _Array, s: int, t: int):
+    chex.assert_rank(A, 2)
+    probes = probing.initialize(SPECS['ford_fulkerson_mincut'])
+    A_pos = np.arange(A.shape[0])
+
+    rng = np.random.default_rng(0)
+
+    w = rng.random(size=A.shape)
+    w = np.maximum(w, w.T) * probing.graph(np.copy(A))
+
+    probing.push(
+        probes,
+        _Stage.INPUT,
+        next_probe={
+            'pos': np.copy(A_pos) * 1.0 / A.shape[0],
+            's': probing.mask_one(s, A.shape[0]),
+            't': probing.mask_one(t, A.shape[0]),
+            'A': np.copy(A),
+            'adj': probing.graph(np.copy(A)),
+            'w': np.copy(w)
+        })
+
+    f, probes = _ff_impl(A, s, t, probes, w)
+
+    probing.push(
+        probes,
+        _Stage.OUTPUT,
+        next_probe={
+            'f': np.copy(f),
+            'c': _minimum_cut(A, s, t)
+        }
+    )
+
+    probing.finalize(probes)
+
+    return f, probes
+
+
 def _minimum_cut(A, s, t):
     C = np.zeros((A.shape[0], 2))
 

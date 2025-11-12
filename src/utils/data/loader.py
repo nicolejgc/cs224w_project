@@ -5,7 +5,7 @@ import torch
 from .helpers import batch_hints_helper
 from .algorithms.specs import SPECS
 from clrs._src.probing import split_stages
-from norm.io import load
+from utils.io import load
 from pathlib import Path
 from torch import as_tensor, index_select
 from typing import List, Optional, Tuple, Union

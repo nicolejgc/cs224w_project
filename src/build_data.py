@@ -5,12 +5,12 @@ import os
 from config.data import DATA_SETTINGS
 from functools import partial
 from math import log
-from norm.io import dump
 from numpy.random import default_rng
 from numpy.typing import NDArray
 from pathlib import Path
 from utils.data import algorithms
 from utils.data.graphs import erdos_renyi_full, two_community, bipartite
+from utils.io import dump
 from utils.types import Algorithm
 
 
@@ -39,8 +39,9 @@ def ford_fulkerson_init(adj, rng, **kwargs):
 
 
 _INITS = {
-    Algorithm.ff: ford_fulkerson_init
-    }
+    Algorithm.ff: ford_fulkerson_init,
+    Algorithm.ffmc: ford_fulkerson_init
+}
 
 _GRAPH_DISTRIB = {
     'two_community': two_community,
@@ -122,7 +123,7 @@ def main(alg: Algorithm,
         print("[avg] traj len:", extras[split]['avg'])
         print("[max] traj len:", extras[split]['max'])
 
-        dump(data, save_path / f'{split}_{alg}.pkl')
+        dump(data, save_path / f'{split}_{alg.value}.pkl')
 
     dump(dict(seed=seed,
               graph_density=probs,
