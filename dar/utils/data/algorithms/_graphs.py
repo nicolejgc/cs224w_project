@@ -525,3 +525,258 @@ def _bfs_ek_impl(A: _Array, s: int, f: int, probes):
             break
 
     return pi, probes
+
+
+def push_relabel(A: _Array, s: int, t: int) -> _Out:
+    """Push-relabel maximum flow algorithm (Goldberg & Tarjan, 1986)."""
+
+    chex.assert_rank(A, 2)
+    n = A.shape[0]
+    probes = probing.initialize(SPECS["push_relabel"])
+    A_pos = np.arange(n)
+
+    probing.push(
+        probes,
+        _Stage.INPUT,
+        next_probe={
+            "pos": np.copy(A_pos) * 1.0 / n,
+            "s": probing.mask_one(s, n),
+            "t": probing.mask_one(t, n),
+            "A": np.copy(A),  # Capacity matrix
+            "adj": probing.graph(np.copy(A)),
+        },
+    )
+
+    # Initialize flow, excess, height, and active queue
+    f = np.zeros_like(A, dtype=float)  # f_h in probes
+    e = np.zeros(n, dtype=float)  # e in probes
+    h = np.zeros(n, dtype=int)  # h in probes
+    in_queue = np.zeros(n)  # 'active' nodes
+
+    # Preflow: push max flow from source s
+    h[s] = n
+    for v in range(n):
+        if A[s, v] > 0:
+            f[s, v] = A[s, v]
+            f[v, s] = -A[s, v]
+            e[v] = A[s, v]
+            e[s] -= A[s, v]
+            if v != s and v != t:
+                in_queue[v] = 1
+
+    # Push initial state as first hint
+    probing.push(
+        probes,
+        _Stage.HINT,
+        next_probe={
+            "h": np.copy(h),
+            "e": np.copy(e),
+            "f_h": np.copy(f),
+            "in_queue": np.copy(in_queue),
+            "u": probing.mask_one(s, n),  # 'u' is the node being processed
+        },
+    )
+
+    # Main loop: while there are active nodes (with excess flow)
+    while in_queue.any():
+        # Select an active node
+        u = np.where(in_queue)[0][0]
+
+        # Discharge operation: push/relabel u until its excess is 0
+        while e[u] > 0:
+            pushed = False
+
+            # Try to push
+            for v in range(n):
+                residual_capacity = A[u, v] - f[u, v]
+                if residual_capacity > 0 and h[u] == h[v] + 1:
+                    # Push flow
+                    delta = min(e[u], residual_capacity)
+                    f[u, v] += delta
+                    f[v, u] -= delta
+                    e[u] -= delta
+                    e[v] += delta
+
+                    # Activate node v if it's not s or t
+                    if v != s and v != t:
+                        in_queue[v] = 1
+
+                    pushed = True
+                    if e[u] == 0:
+                        break  # Finished discharging u for now
+
+            if pushed:
+                continue  # Continue discharge loop (try to push more from u)
+
+            # If no push was possible, relabel u
+            min_h = np.inf
+            for v in range(n):
+                if A[u, v] - f[u, v] > 0:  # If there is residual capacity
+                    min_h = min(min_h, h[v])
+
+            if min_h != np.inf:
+                h[u] = min_h + 1
+            else:
+                # This case implies u is disconnected from t in residual graph
+                break  # Break discharge loop
+
+        # u is now discharged, remove from active queue
+        in_queue[u] = 0
+
+        # Push hint after processing node u
+        probing.push(
+            probes,
+            _Stage.HINT,
+            next_probe={
+                "h": np.copy(h),
+                "e": np.copy(e),
+                "f_h": np.copy(f),
+                "in_queue": np.copy(in_queue),
+                "u": probing.mask_one(u, n),
+            },
+        )
+
+    # Final flow matrix is the output
+    probing.push(probes, _Stage.OUTPUT, next_probe={"f": np.copy(f)})
+    probing.finalize(probes)
+
+    return f, probes
+
+
+def push_relabel_parallel(A: _Array, s: int, t: int) -> _Out:
+    """Parallel-step push-relabel maximum flow algorithm (Goldberg & Tarjan, 1986)."""
+
+    chex.assert_rank(A, 2)
+    n = A.shape[0]
+    # Assuming SPECS["push_relabel"] is compatible, as it tracks h, e, f_h
+    probes = probing.initialize(SPECS["push_relabel"])
+    A_pos = np.arange(n)
+
+    probing.push(
+        probes,
+        _Stage.INPUT,
+        next_probe={
+            "pos": np.copy(A_pos) * 1.0 / n,
+            "s": probing.mask_one(s, n),
+            "t": probing.mask_one(t, n),
+            "A": np.copy(A),  # Capacity matrix
+            "adj": probing.graph(np.copy(A)),
+        },
+    )
+
+    # Initialize flow, excess, height
+    f = np.zeros_like(A, dtype=float)  # f_h in probes
+    e = np.zeros(n, dtype=float)  # e in probes
+    h = np.zeros(n, dtype=int)  # h in probes
+
+    # Preflow: push max flow from source s
+    h[s] = n
+    for v in range(n):
+        if A[s, v] > 0:
+            f[s, v] = A[s, v]
+            f[v, s] = -A[s, v]
+            e[v] = A[s, v]
+            e[s] -= A[s, v]
+
+    # 'in_queue' represents active nodes
+    in_queue = (e > 0).astype(int)
+    in_queue[s] = 0
+    in_queue[t] = 0
+
+    # Push initial state as first hint
+    probing.push(
+        probes,
+        _Stage.HINT,
+        next_probe={
+            "h": np.copy(h),
+            "e": np.copy(e),
+            "f_h": np.copy(f),
+            "in_queue": np.copy(in_queue),
+            "u": probing.mask_one(s, n),  # 'u' is a placeholder for parallel steps
+        },
+    )
+
+    active_nodes = np.where(in_queue)[0]
+
+    # Main loop: while there are active nodes
+    while active_nodes.size > 0:
+        e_next = e.copy()
+        f_next = f.copy()
+
+        pushed_something = False
+        h_changed = False
+
+        # --- Parallel Push Phase ---
+        # Track excess "used" in this step to avoid over-pushing
+        e_current_step = e.copy()
+
+        for u in active_nodes:
+            # Try to push from u to all admissible neighbors
+            for v in range(n):
+                residual = A[u, v] - f[u, v]
+                if residual > 0 and h[u] == h[v] + 1:
+                    # This is an admissible edge
+                    delta = min(e_current_step[u], residual)
+
+                    if delta > 0:
+                        f_next[u, v] += delta
+                        f_next[v, u] -= delta
+                        e_next[u] -= delta
+                        e_next[v] += delta
+
+                        e_current_step[u] -= delta  # Mark excess as "used"
+                        pushed_something = True
+
+        # Commit flow and excess changes from pushes
+        f = f_next
+        e = e_next
+
+        # --- Parallel Relabel Phase ---
+        # Relabel nodes that still have excess and no admissible edges
+        for u in active_nodes:
+            if e[u] > 0:  # Still active after push phase
+                # Check if relabel is needed
+                needs_relabel = True
+                min_h = np.inf
+
+                for v in range(n):
+                    residual = A[u, v] - f[u, v]
+                    if residual > 0:
+                        min_h = min(min_h, h[v])
+                        if h[u] == h[v] + 1:
+                            # Found an admissible edge, no relabel needed
+                            needs_relabel = False
+                            break
+
+                if needs_relabel and min_h != np.inf:
+                    h[u] = min_h + 1
+                    h_changed = True
+
+        # Update active set
+        in_queue = (e > 0).astype(int)
+        in_queue[s] = 0
+        in_queue[t] = 0
+        active_nodes = np.where(in_queue)[0]
+
+        # Push hint after this parallel step
+        probing.push(
+            probes,
+            _Stage.HINT,
+            next_probe={
+                "h": np.copy(h),
+                "e": np.copy(e),
+                "f_h": np.copy(f),
+                "in_queue": np.copy(in_queue),
+                "u": probing.mask_one(s, n),  # 'u' placeholder
+            },
+        )
+
+        # If no pushes and no height changes, we are stuck
+        if not pushed_something and not h_changed:
+            break
+
+    # Final flow matrix is the output
+    probing.push(probes, _Stage.OUTPUT, next_probe={"f": np.copy(f)})
+    probing.finalize(probes)
+
+    return f, probes
