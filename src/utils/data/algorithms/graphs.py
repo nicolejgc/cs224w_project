@@ -247,7 +247,13 @@ def run_global_relabel(probes, A, f, h, e, s, t, n, C=None):
         probing.push(
             probes,
             clrs.Stage.HINT,
-            next_probe=hint_probe,
+            next_probe={
+                "h": np.copy(d),
+                "e": np.copy(e),
+                "f_h": np.copy(f),
+                "active_nodes": current_layer,
+                "__phase": np.array([PushRelabelPhase.BFS]),
+            },
         )
 
         new_q = []
@@ -332,7 +338,7 @@ def _push_relabel_impl(A: np.ndarray, s: int, t: int, C: np.ndarray | None) -> _
                         "e": np.copy(e),
                         "f_h": np.copy(f),
                         "active_nodes": np.zeros(n),
-                        "phase": _phase_one_hot(PushRelabelPhase.PUSH_RELABEL),
+                        "__phase": np.array([PushRelabelPhase.PUSH_RELABEL]),
                     },
                 )
             break
@@ -345,7 +351,7 @@ def _push_relabel_impl(A: np.ndarray, s: int, t: int, C: np.ndarray | None) -> _
                 "e": np.copy(e),
                 "f_h": np.copy(f),
                 "active_nodes": active_mask.astype(float),
-                "phase": _phase_one_hot(PushRelabelPhase.PUSH_RELABEL),
+                "__phase": np.array([PushRelabelPhase.PUSH_RELABEL]),
             },
         )
         steps_since_relabel += 1

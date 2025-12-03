@@ -48,7 +48,7 @@ SPECS = types.MappingProxyType(
             "e": (_Stage.HINT, _Location.NODE, _Type.SCALAR),  # excess
             "f_h": (_Stage.HINT, _Location.EDGE, _Type.SCALAR),  # intermed flow assn
             "active_nodes": (_Stage.HINT, _Location.NODE, _Type.MASK),
-            "phase": (clrs.Stage.HINT, clrs.Location.GRAPH, clrs.Type.MASK_ONE),
+            "__phase": (_Stage.HINT, _Location.GRAPH, _Type.MASK),
             # outputs
             "f": (_Stage.OUTPUT, _Location.EDGE, _Type.SCALAR),  # final flow assn
         },
