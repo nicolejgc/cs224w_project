@@ -159,8 +159,8 @@ def hint_loss(preds, truth, feedback, alpha, device):
                 #    loss = alpha * loss + (1-alpha) * max_flow(y_pred, feedback.features.inputs, device=device
                 if truth.name == "f_h":
                     hint_mask.append(h_mask.all(-1).all(-1))
-                    loss = (loss * h_mask).sum(-1).sum(-1) / adj.sum(-1).sum(-1).to(
-                        device
+                    loss = (loss * h_mask).sum(-1).sum(-1) / (
+                        adj.sum(-1).sum(-1).to(device) + EPS
                     )
                 else:
                     hint_mask.append(h_mask.all(-1))
@@ -170,7 +170,7 @@ def hint_loss(preds, truth, feedback, alpha, device):
                 hint_mask.append(h_mask.all(-1))
 
                 # Sum over the single node dimension (N) and normalize by number of nodes
-                loss = (loss * h_mask).sum(-1) / (h_mask.sum(-1))
+                loss = (loss * h_mask).sum(-1) / (h_mask.sum(-1) + EPS)
 
         elif truth.type_ == _Type.MASK:
             hint_mask.append(h_mask.all(-1))
@@ -209,7 +209,7 @@ def hint_loss(preds, truth, feedback, alpha, device):
     )
     mask = is_not_done * _expand_to(hint_mask, len(is_not_done.shape))
 
-    return (losses * mask).sum() / mask.sum()
+    return (losses * mask).sum() / (mask.sum() + EPS)
 
 
 def output_loss(preds, truth, feedback, alpha, device):
@@ -229,7 +229,9 @@ def output_loss(preds, truth, feedback, alpha, device):
             cross_entropy(y_pred, y.argmax(-1).long(), num_classes=y_pred.shape[-1])
         )
     elif truth.location == _Location.EDGE and truth.type_ == _Type.SCALAR:
-        loss = ((y_pred - (y * adj)) ** 2).sum() / adj_mat(feedback.features).sum()
+        loss = ((y_pred - (y * adj)) ** 2).sum() / (
+            adj_mat(feedback.features).sum() + EPS
+        )
         # if truth.name == "f":
         #    loss = alpha * loss + (1-alpha) * max_flow(y_pred, feedback.features.inputs, device=device)
 

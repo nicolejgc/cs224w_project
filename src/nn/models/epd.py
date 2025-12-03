@@ -44,11 +44,17 @@ class EncodeProcessDecode(clrs.Model):
         add_noise: bool = False,
         decode_hints: bool = True,
         encode_hints: bool = True,
-        max_steps: int = None,
+        max_steps: int | None = None,
     ):
         super().__init__(spec=spec)
 
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = "cpu"
+        if torch.cuda.is_available():
+            self.device = "cuda"
+        elif torch.mps.is_available():
+            print("using mps")
+            self.device = "mps"
+
         self.net_ = EncodeProcessDecode_Impl(
             spec=spec,
             dummy_trajectory=dummy_trajectory,
@@ -81,6 +87,7 @@ class EncodeProcessDecode(clrs.Model):
         self.optimizer.zero_grad()
 
         preds, hint_preds = self.net_(feedback.features)
+        # print(preds["f"].isnan().any().item())
         total_loss = 0.0
 
         n_hints = 0
@@ -103,6 +110,9 @@ class EncodeProcessDecode(clrs.Model):
 
         total_loss.backward()
 
+        # Added gradient clipping to avoid big ass explosion
+        torch.nn.utils.clip_grad_norm_(self.net_.parameters(), max_norm=1.0)
+
         self.optimizer.step()
         return total_loss.item()
 
@@ -115,6 +125,7 @@ class EncodeProcessDecode(clrs.Model):
         self.net_.eval()
         raw_preds, aux = self.net_(features)
         preds = decoders.postprocess(raw_preds, self.spec)
+        # print(preds)
 
         return preds, (raw_preds, aux)
 
@@ -157,7 +168,7 @@ class EncodeProcessDecode_Impl(Module):
         no_feats: List,
         add_noise: bool = False,
         bias: bool = True,
-        max_steps: int = None,
+        max_steps: int | None = None,
         device: str = "cpu",
     ):
         super().__init__()
@@ -172,6 +183,10 @@ class EncodeProcessDecode_Impl(Module):
         self.max_steps = max_steps
 
         self.no_feats = lambda x: x in no_feats or x.startswith("__")  # noqa
+
+        # Added layer norms for stability...
+        self.ln_x = torch.nn.LayerNorm(num_hidden)
+        self.ln_h = torch.nn.LayerNorm(num_hidden)
 
         for inp in dummy_trajectory.features.inputs:
             if self.no_feats(inp.name):
@@ -192,6 +207,9 @@ class EncodeProcessDecode_Impl(Module):
                     out_features=self.num_hidden,
                     bias=False,
                 )
+
+        print(aggregator)
+        print(processor)
 
         self.process = processors.PROCESSORS[processor](
             num_hidden=num_hidden, aggregator=aggregator, activation=relu
@@ -216,6 +234,9 @@ class EncodeProcessDecode_Impl(Module):
         self.to(device)
 
     def step(self, trajectories, h, adj):
+        if torch.isnan(h).any():
+            raise ValueError("NaN detected in input hidden state 'h', bruh")
+
         # ~~~ init ~~~
         batch_size, num_nodes = _dimensions(trajectories[0])
         x = torch.zeros((batch_size, num_nodes, self.num_hidden)).to(self.device)
@@ -226,17 +247,48 @@ class EncodeProcessDecode_Impl(Module):
         # ~~~ encode ~~~
         for trajectory in trajectories:
             for dp in trajectory:
-                if dp is None or self.no_feats(dp.name) or dp.name not in self.encoders:
+                if dp is None:
+                    print(trajectories)
+                    print("WHAT THIS ISN'T SUPPOSE TO HAPPEN")
                     continue
+
+                if self.no_feats(dp.name) or dp.name not in self.encoders:
+                    continue
+
+                if torch.isnan(dp.data).any():
+                    raise ValueError(
+                        f"NaN detected in input feature '{dp.name}' from feedback, bruh"
+                    )
+
+                if dp.data.abs().max() > 1e4:
+                    print(
+                        f"WARNING: Input '{dp.name}' has huge values: {dp.data.max()}"
+                    )
+
                 data = encoders.preprocess(dp, num_nodes).to(self.device)
                 encoder = self.encoders[dp.name]
+
                 x = encoders.accum_node_fts(encoder, dp, data, x)
                 edge_attr = encoders.accum_edge_fts(encoder, dp, data, edge_attr, adj)
-                # graph_fts = encoders.accum_graph_fts(encoder, dp, data, graph_fts)
+
+        if torch.isnan(x).any():
+            raise ValueError("NaN detected in 'x' after encoding, bruh")
+        if torch.isnan(edge_attr).any():
+            raise ValueError("NaN detected in 'edge_attr' after encoding, bruh")
+
+        x = self.ln_x(x)
+        h = self.ln_h(h)
 
         # ~~~ process ~~~
         z = torch.cat([x, h], dim=-1)
         hiddens = self.process(z, adj, edge_attr)
+
+        if torch.isnan(hiddens).any():
+            print("z Stats:", z.mean(), z.std(), z.max())
+            print("x Stats:", x.mean(), x.std(), x.max())
+            print("h Stats:", h.mean(), h.std(), h.max())
+            raise ValueError("NaN detected in output from processor, bruh")
+
         h_t = torch.cat([z, hiddens], dim=-1)
         self.h_t = h_t
         self.edge_attr = edge_attr
@@ -276,11 +328,10 @@ class EncodeProcessDecode_Impl(Module):
         A = edge_attr_mat(features).to(self.device)
 
         for i in range(num_steps):
-            cur_hint = (
-                _hints_i(features.hints, i)
-                if self.training or i == 0
-                else _own_hints_i(hint_preds[-1], self.spec, features, i)
-            )
+            if self.training or i == 0:
+                cur_hint = _hints_i(features.hints, i)
+            else:
+                cur_hint = _own_hints_i(hint_preds[-1], self.spec, features, i)
 
             trajectories = [features.inputs]
             if self.encode_hints:

@@ -23,7 +23,7 @@ def evaluate(model, feedback, extras=None, verbose=False):
     if verbose and aux:
         losses, total_loss = model.verbose_loss(feedback, raw_preds, aux)
         out.update(losses)
-        out.update({'val_loss': total_loss})
+        out.update({"val_loss": total_loss})
 
     out.update(_eval_preds(predictions, feedback, verbose))
 
@@ -50,7 +50,7 @@ def _eval_preds(preds, feedback, verbose=False):
         else:
             evals[truth.name] = EVAL_FN[truth.type_](y_hat, y).item()
 
-    evals['score'] = evals['f_mse']  # sum([v for v in evals.values()]) / len(evals)
+    evals["score"] = evals["f_mse"]  # sum([v for v in evals.values()]) / len(evals)
 
     if verbose:
         evals = {
@@ -66,5 +66,5 @@ EVAL_FN = {
     clrs.Type.MASK: mask_fn,
     clrs.Type.MASK_ONE: eval_one,
     clrs.Type.CATEGORICAL: eval_categorical,
-    clrs.Type.POINTER: accuracy
+    clrs.Type.POINTER: accuracy,
 }

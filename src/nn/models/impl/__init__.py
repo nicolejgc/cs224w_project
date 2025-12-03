@@ -21,7 +21,7 @@ def _dimensions(inputs):
 
 def _bfs_op_mask(hints):
     for dp in hints:
-        if dp.name == '__is_bfs_op':
+        if dp.name == "__is_bfs_op" or dp.name == "__phase":
             return dp
 
 
@@ -29,12 +29,12 @@ def _hints_i(hints, i):
     hints_i = [_DataPoint(dp.name, dp.location, dp.type_, dp.data[i]) for dp in hints]
 
     for h in hints_i:
-        if h.name == 'f_h':
+        if h.name == "f_h":
             zero_c_h = 1 - (h.data == 0).all(-1).all(-1) * 1.0
             break
 
     for h in hints_i:
-        if h.name == 'c_h':
+        if h.name == "c_h":
             h.data = h.data * (1 - zero_c_h.unsqueeze(-1).unsqueeze(-1))
             break
 
@@ -82,5 +82,7 @@ def _reset_hints(hints, source):
         reach_h[i][s.argmax().item()] = 1
 
     pi = torch.stack([torch.arange(n)] * b)
-    return [_DataPoint('reach_h', _Location.NODE, _Type.MASK, reach_h),
-            _DataPoint('pi_h', _Location.NODE, _Type.POINTER, pi)]
+    return [
+        _DataPoint("reach_h", _Location.NODE, _Type.MASK, reach_h),
+        _DataPoint("pi_h", _Location.NODE, _Type.POINTER, pi),
+    ]

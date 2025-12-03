@@ -11,11 +11,7 @@ _Tensor = torch.FloatTensor
 
 
 class Encoder(Module):
-    def __init__(self,
-                 in_features,
-                 out_features,
-                 bias=True):
-
+    def __init__(self, in_features, out_features, bias=True):
         super(Encoder, self).__init__()
 
         self.in_features = in_features
@@ -35,12 +31,18 @@ def preprocess(dp: _DataPoint, nb_nodes: int) -> _Tensor:
     if dp.type_ == _Type.POINTER:
         return one_hot(dp.data.long(), nb_nodes).float()
 
+    # Custom normalization for push relabel
+    if dp.name == "h":
+        return dp.data / nb_nodes
+    if dp.name in ["e"]:
+        return torch.log1p(dp.data.abs())  # log(x + 1)
+
     return dp.data
 
 
-def accum_edge_fts(encoder, dp: _DataPoint, data: _Tensor,
-                   edge_fts: _Tensor, adj: _Tensor) -> _Tensor:
-
+def accum_edge_fts(
+    encoder, dp: _DataPoint, data: _Tensor, edge_fts: _Tensor, adj: _Tensor
+) -> _Tensor:
     encoding = _encode_inputs(encoder, dp, data)
 
     if dp.location == _Location.NODE and dp.type_ == _Type.POINTER:
@@ -53,9 +55,9 @@ def accum_edge_fts(encoder, dp: _DataPoint, data: _Tensor,
     return edge_fts
 
 
-def accum_node_fts(encoder, dp: _DataPoint, data: _Tensor,
-                   node_fts: _Tensor) -> _Tensor:
-
+def accum_node_fts(
+    encoder, dp: _DataPoint, data: _Tensor, node_fts: _Tensor
+) -> _Tensor:
     encoding = _encode_inputs(encoder, dp, data)
 
     if dp.location == _Location.NODE and dp.type_ != _Type.POINTER:
@@ -64,8 +66,9 @@ def accum_node_fts(encoder, dp: _DataPoint, data: _Tensor,
     return node_fts
 
 
-def accum_graph_fts(encoders, dp: _DataPoint, data: _Tensor,
-                    graph_fts: _Tensor) -> _Tensor:
+def accum_graph_fts(
+    encoders, dp: _DataPoint, data: _Tensor, graph_fts: _Tensor
+) -> _Tensor:
     encoding = _encode_inputs(encoders, dp, data)
 
     if dp.location == _Location.GRAPH and dp.type_ != _Type.POINTER:

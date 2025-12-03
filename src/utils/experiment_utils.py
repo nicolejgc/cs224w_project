@@ -129,6 +129,8 @@ def _init_ray(num_cpus: int, num_gpus: int, nw: int):
     """Initialize Ray for parallel execution."""
     import ray
 
+    print(num_cpus, num_gpus, nw)
+
     ray.init(num_cpus=num_cpus, num_gpus=num_gpus, include_dashboard=False)
 
 

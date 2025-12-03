@@ -20,7 +20,7 @@ def eval_categorical(y_pred, y_true):
 
 
 def mse(y_pred, y_true):
-    error = (y_pred - y_true)**2
+    error = (y_pred - y_true) ** 2
     error = np.mean(error)
     return round(error, REGRESSION_ERROR_DECIMALS)
 
@@ -38,19 +38,21 @@ def masked_mae(y_pred, y_true):
 
 def masked_mse(y_pred, y_true):
     mask = y_true != 0
-    error = (y_pred - y_true)**2
+    error = (y_pred - y_true) ** 2
     error = error[mask].mean()
     return round(error, REGRESSION_ERROR_DECIMALS)
 
 
 def dual_objective(y_pred, inputs):
     for inp in inputs:
-        if inp.name == 'adj':
+        if inp.name == "adj":
             adj = inp.data.numpy()
-        elif inp.name == 'A':
+        elif inp.name == "A":
             weights = inp.data.numpy()
 
-    return round(constraints_accuracy(y_pred, weights, adj), CLASSIFICATION_ERROR_DECIMALS)
+    return round(
+        constraints_accuracy(y_pred, weights, adj), CLASSIFICATION_ERROR_DECIMALS
+    )
 
 
 def mask_fn(pred, truth):
@@ -63,10 +65,10 @@ def mask_fn(pred, truth):
     fn = np.sum(fn)
 
     if tp + fp + fn == 0:
-        return 1.
+        return 1.0
 
     if tp == 0:
-        return 0.
+        return 0.0
 
     precision = tp / (tp + fp)
     recall = tp / (tp + fn)

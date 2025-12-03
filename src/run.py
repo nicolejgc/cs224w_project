@@ -15,7 +15,7 @@ from utils.experiments import evaluate
 from utils.io import dump, load
 from utils.types import Algorithm
 
-app = typer.Typer(add_completion=False)
+app = typer.Typer(add_completion=False, pretty_exceptions_show_locals=False)
 
 
 def choose_default_dtype(name: str):
@@ -136,6 +136,9 @@ def valid(
     runs = init_runs(
         seed=seed, model_fn=model_fn, optim_fn=torch.optim.SGD, **configs["runs"]
     )
+    print(num_gpus * nw)
+    print(nw)
+    print(num_gpus)
 
     experiment = Experiment(
         runs=runs,
