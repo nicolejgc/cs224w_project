@@ -15,6 +15,7 @@ wheels/
 # Generated training sets
 dar/data/
 ./data/
+data/
 
 # Runs
 ./runs
