@@ -6,6 +6,7 @@ import networkx as nx
 from .specs import SPECS
 from clrs._src import probing
 from clrs._src.probing import ProbesDict
+from enum import IntEnum
 from typing import Tuple
 
 
@@ -17,7 +18,7 @@ _Out = Tuple[_Array, ProbesDict]
 _OutputClass = clrs.OutputClass
 
 
-def _ff_impl(A: _Array, s: int, t: int, probes, w):
+def _ff_impl(A: _Array, s: int, t: int, probes, w) -> _Out:
     f = np.zeros((A.shape[0], A.shape[0]))
     df = np.array(0)
 
@@ -40,14 +41,15 @@ def _ff_impl(A: _Array, s: int, t: int, probes, w):
         probes,
         _Stage.HINT,
         next_probe={
-            'mask': np.copy(msk),
-            'd': np.copy(d),
-            'pi_h': np.copy(pi),
-            'f_h': np.copy(f),
-            'df': np.copy(df),
-            'c_h': np.copy(C),
-            '__is_bfs_op': np.copy([1])
-        })
+            "mask": np.copy(msk),
+            "d": np.copy(d),
+            "pi_h": np.copy(pi),
+            "f_h": np.copy(f),
+            "df": np.copy(df),
+            "c_h": np.copy(C),
+            "__is_bfs_op": np.copy([1]),
+        },
+    )
 
     while True:
         for _ in range(A.shape[0]):
@@ -65,14 +67,15 @@ def _ff_impl(A: _Array, s: int, t: int, probes, w):
                 probes,
                 _Stage.HINT,
                 next_probe={
-                    'pi_h': np.copy(pi),
-                    'd': np.copy(prev_d),
-                    'mask': np.copy(msk),
-                    'f_h': np.copy(f),
-                    'df': np.copy(df),
-                    'c_h': np.copy(C),
-                    '__is_bfs_op': np.copy([1])
-                })
+                    "pi_h": np.copy(pi),
+                    "d": np.copy(prev_d),
+                    "mask": np.copy(msk),
+                    "f_h": np.copy(f),
+                    "df": np.copy(df),
+                    "c_h": np.copy(C),
+                    "__is_bfs_op": np.copy([1]),
+                },
+            )
 
             if np.all(d == prev_d):
                 break
@@ -80,10 +83,7 @@ def _ff_impl(A: _Array, s: int, t: int, probes, w):
         if pi[t] == t:
             break
 
-        df = min([
-            A[u, v] - f[u, v]
-            for u, v in reverse(pi)
-        ])
+        df = min([A[u, v] - f[u, v] for u, v in reverse(pi)])
 
         for u, v in reverse(pi):
             f[u, v] += df
@@ -98,22 +98,22 @@ def _ff_impl(A: _Array, s: int, t: int, probes, w):
             probes,
             _Stage.HINT,
             next_probe={
-                'pi_h': np.copy(pi),
-                'd': np.copy(d),
-                'mask': np.copy(msk),
-                'f_h': np.copy(f),
-                'df': np.copy(df),
-                'c_h': np.copy(C),
-                '__is_bfs_op': np.array([0])
-            })
+                "pi_h": np.copy(pi),
+                "d": np.copy(d),
+                "mask": np.copy(msk),
+                "f_h": np.copy(f),
+                "df": np.copy(df),
+                "c_h": np.copy(C),
+                "__is_bfs_op": np.array([0]),
+            },
+        )
 
     return f, probes
 
 
-def ford_fulkerson(A: _Array, s: int, t: int):
-
+def ford_fulkerson(A: _Array, s: int, t: int) -> _Out:
     chex.assert_rank(A, 2)
-    probes = probing.initialize(SPECS['ford_fulkerson'])
+    probes = probing.initialize(SPECS["ford_fulkerson"])
     A_pos = np.arange(A.shape[0])
 
     rng = np.random.default_rng(0)
@@ -125,31 +125,26 @@ def ford_fulkerson(A: _Array, s: int, t: int):
         probes,
         _Stage.INPUT,
         next_probe={
-            'pos': np.copy(A_pos) * 1.0 / A.shape[0],
-            's': probing.mask_one(s, A.shape[0]),
-            't': probing.mask_one(t, A.shape[0]),
-            'A': np.copy(A),
-            'adj': probing.graph(np.copy(A)),
-            'w': np.copy(w),
-        })
+            "pos": np.copy(A_pos) * 1.0 / A.shape[0],
+            "s": probing.mask_one(s, A.shape[0]),
+            "t": probing.mask_one(t, A.shape[0]),
+            "A": np.copy(A),
+            "adj": probing.graph(np.copy(A)),
+            "w": np.copy(w),
+        },
+    )
 
     f, probes = _ff_impl(A, s, t, probes, w)
 
-    probing.push(
-        probes,
-        _Stage.OUTPUT,
-        next_probe={
-            'f': np.copy(f)
-        }
-    )
+    probing.push(probes, _Stage.OUTPUT, next_probe={"f": np.copy(f)})
     probing.finalize(probes)
 
     return f, probes
 
 
-def ford_fulkerson_mincut(A: _Array, s: int, t: int):
+def ford_fulkerson_mincut(A: _Array, s: int, t: int) -> _Out:
     chex.assert_rank(A, 2)
-    probes = probing.initialize(SPECS['ford_fulkerson_mincut'])
+    probes = probing.initialize(SPECS["ford_fulkerson_mincut"])
     A_pos = np.arange(A.shape[0])
 
     rng = np.random.default_rng(0)
@@ -161,23 +156,19 @@ def ford_fulkerson_mincut(A: _Array, s: int, t: int):
         probes,
         _Stage.INPUT,
         next_probe={
-            'pos': np.copy(A_pos) * 1.0 / A.shape[0],
-            's': probing.mask_one(s, A.shape[0]),
-            't': probing.mask_one(t, A.shape[0]),
-            'A': np.copy(A),
-            'adj': probing.graph(np.copy(A)),
-            'w': np.copy(w)
-        })
+            "pos": np.copy(A_pos) * 1.0 / A.shape[0],
+            "s": probing.mask_one(s, A.shape[0]),
+            "t": probing.mask_one(t, A.shape[0]),
+            "A": np.copy(A),
+            "adj": probing.graph(np.copy(A)),
+            "w": np.copy(w),
+        },
+    )
 
     f, probes = _ff_impl(A, s, t, probes, w)
 
     probing.push(
-        probes,
-        _Stage.OUTPUT,
-        next_probe={
-            'f': np.copy(f),
-            'c': _minimum_cut(A, s, t)
-        }
+        probes, _Stage.OUTPUT, next_probe={"f": np.copy(f), "c": _minimum_cut(A, s, t)}
     )
 
     probing.finalize(probes)
@@ -189,8 +180,9 @@ def _minimum_cut(A, s, t):
     C = np.zeros((A.shape[0], 2))
 
     graph = nx.from_numpy_array(A)
-    nx.set_edge_attributes(graph, {(i, j): A[i, j] for i, j in zip(*A.nonzero())},
-                           name='capacity')
+    nx.set_edge_attributes(
+        graph, {(i, j): A[i, j] for i, j in zip(*A.nonzero())}, name="capacity"
+    )
 
     _, cuts = nx.minimum_cut(graph, s, t)
 
@@ -207,3 +199,180 @@ def _masked_array(a):
     a = np.empty_like(a)
     a.fill(_OutputClass.MASKED)
     return a
+
+
+class PushRelabelPhase(IntEnum):
+    PUSH_RELABEL = 0
+    BFS = 1
+
+
+def run_global_relabel(probes, A, f, h, e, s, t, n):
+    """
+    Runs a backwards BFS on residual graph to relabel.
+    """
+    d = np.full(n, n, dtype=int)
+    d[t] = 0
+
+    q = [t]
+    visited = np.zeros(n, dtype=bool)
+    visited[t] = True
+
+    while len(q) > 0:
+        current_layer = np.zeros(n)
+        current_layer[q] = 1.0
+
+        probing.push(
+            probes,
+            clrs.Stage.HINT,
+            next_probe={
+                "h": np.copy(d),
+                "e": np.copy(e),
+                "f_h": np.copy(f),
+                "active_nodes": current_layer,
+                "phase": np.array([PushRelabelPhase.BFS]),
+            },
+        )
+
+        new_q = []
+        for v in q:
+            for u in range(n):
+                # We can move from u to v if capacity(u,v) - flow(u,v) > 0
+                res_cap = A[u, v] - f[u, v]
+
+                if res_cap > 0 and not visited[u]:
+                    visited[u] = True
+                    d[u] = d[v] + 1
+                    new_q.append(u)
+        q = new_q
+
+    mask = d < n
+    h[mask] = d[mask]
+    h[s] = n
+
+    return h
+
+
+def _push_relabel_impl(A: np.ndarray, s: int, t: int, C: np.ndarray | None) -> _Out:
+    """
+    Push-relabel with global relabel heuristic and batching
+    """
+    n = A.shape[0]
+    probes = probing.initialize(SPECS["push_relabel"])
+
+    f = np.zeros_like(A)
+    h = np.zeros(n, dtype=int)
+    e = np.zeros(n)
+
+    # Preflow: saturate source edges
+    h[s] = n
+    for v in range(n):
+        if A[s, v] > 0:
+            flow = A[s, v]
+            f[s, v] = flow
+            f[v, s] = -flow
+            e[v] += flow
+            e[s] -= flow
+
+    probing.push(
+        probes,
+        clrs.Stage.INPUT,
+        next_probe={
+            "pos": np.arange(n) * 1.0 / n,
+            "s": probing.mask_one(s, n),
+            "t": probing.mask_one(t, n),
+            "A": np.copy(A),
+            "adj": (A > 0).astype(float),
+        },
+    )
+
+    global_relabel_freq = n**2  # Run BFS every N^2 steps
+    steps_since_relabel = 0
+    step = 0
+
+    while True:
+        # perform global-relabel using BFS
+        if steps_since_relabel >= global_relabel_freq:
+            # global relabel also adds probes for BFS steps
+            h = run_global_relabel(probes, A, f, h, e, s, t, n)
+            steps_since_relabel = 0
+            step += 1
+
+        # Get active nodes
+        active_mask = e > 0
+        active_mask[s] = False
+        active_mask[t] = False
+        current_active_nodes = np.where(active_mask)[0]
+
+        # Check if we are done
+        if len(current_active_nodes) == 0:
+            # Necessary to avoid silly edge cases
+            if step == 0:
+                probing.push(
+                    probes,
+                    clrs.Stage.HINT,
+                    next_probe={
+                        "h": np.copy(h),
+                        "e": np.copy(e),
+                        "f_h": np.copy(f),
+                        "active_nodes": np.zeros(n),
+                        "phase": np.array([PushRelabelPhase.PUSH_RELABEL]),
+                    },
+                )
+            break
+
+        probing.push(
+            probes,
+            clrs.Stage.HINT,
+            next_probe={
+                "h": np.copy(h),
+                "e": np.copy(e),
+                "f_h": np.copy(f),
+                "active_nodes": active_mask.astype(float),
+                "phase": np.array([PushRelabelPhase.PUSH_RELABEL]),
+            },
+        )
+        steps_since_relabel += 1
+        step += 1
+
+        # Discharge stage
+        for u in current_active_nodes:
+            if e[u] <= 0:
+                continue
+
+            # Pushing
+            for v in range(n):
+                residual = A[u, v] - f[u, v]
+                if residual > 0 and h[u] == h[v] + 1:
+                    delta = min(e[u], residual)
+                    if delta > 0:
+                        f[u, v] += delta
+                        f[v, u] -= delta
+                        e[u] -= delta
+                        e[v] += delta
+                        if e[u] == 0:
+                            break
+
+            # Relabeling
+            if e[u] > 0:
+                min_h = np.inf
+                for v in range(n):
+                    residual = A[u, v] - f[u, v]
+                    if residual > 0:
+                        min_h = min(min_h, h[v])
+
+                if min_h != np.inf:
+                    h[u] = min_h + 1
+
+    probing.push(probes, clrs.Stage.OUTPUT, next_probe={"f": np.copy(f)})
+    probing.finalize(probes)
+
+    return f, probes
+
+
+def push_relabel(A: np.ndarray, s: int, t: int) -> _Out:
+    return _push_relabel_impl(A, s, t, None)
+
+
+def push_relabel_mincut(A: np.ndarray, s: int, t: int) -> _Out:
+    # TODO: Not implemented yet
+    return _push_relabel_impl(A, s, t, None)
