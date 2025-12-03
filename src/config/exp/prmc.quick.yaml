@@ -1,0 +1,15 @@
+algorithm: push_relabel_mincut
+runs:
+  num_runs: 1
+  hp_space: pr_mc_one
+  batch_size: 16
+  early_stop: true
+  early_stop_patience: 5
+  train_steps: 500
+  verbose: true
+  log_every: 50
+experiment:
+  name: pr-mc-quick
+  higher_is_better: false
+  num_valid_trials: 1
+

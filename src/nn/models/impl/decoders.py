@@ -105,8 +105,12 @@ def new_decoder(spec, num_hidden, num_classes=None):
                                out_features=num_classes)
 
     if location == _Location.GRAPH:
-        if type_ in [_Type.SCALAR, _Type.MASK, _Type.MASK_ONE]:
+        if type_ in [_Type.SCALAR, _Type.MASK]:
             return Decoder(in_features=num_hidden*3, out_features=1)
+        if type_ == _Type.MASK_ONE:
+            # GRAPH-level MASK_ONE (like phase) needs num_classes outputs for one-hot
+            assert num_classes is not None
+            return Decoder(in_features=num_hidden*3, out_features=num_classes)
 
     raise ValueError("Unrecognized specs during decoder creation.")
 
@@ -141,9 +145,13 @@ def decode_from_latents(name, spec, decoder, h_t, adj, edge_attr):
             return p_1.unsqueeze(-2) + p_2.unsqueeze(-3) + p_e
 
     if location == _Location.GRAPH:
-        if type_ in [_Type.SCALAR, _Type.MASK, _Type.MASK_ONE]:
+        if type_ in [_Type.SCALAR, _Type.MASK]:
             g_h = torch.amax(h_t, dim=-2)
             return decoder(g_h).squeeze(-1)
+        if type_ == _Type.MASK_ONE:
+            # GRAPH-level MASK_ONE (like phase) returns [batch, num_classes] - don't squeeze
+            g_h = torch.amax(h_t, dim=-2)
+            return decoder(g_h)
 
     raise ValueError("Unrecognized specs during decoding from latents.")
 

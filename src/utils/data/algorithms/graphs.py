@@ -205,10 +205,21 @@ class PushRelabelPhase(IntEnum):
     PUSH_RELABEL = 0
     BFS = 1
 
+NUM_PHASES = 2  # Number of phases for one-hot encoding
 
-def run_global_relabel(probes, A, f, h, e, s, t, n):
+def _phase_one_hot(phase: PushRelabelPhase) -> np.ndarray:
+    """Convert phase enum to one-hot encoding for MASK_ONE type."""
+    one_hot = np.zeros(NUM_PHASES)
+    one_hot[phase] = 1.0
+    return one_hot
+
+
+def run_global_relabel(probes, A, f, h, e, s, t, n, C=None):
     """
     Runs a backwards BFS on residual graph to relabel.
+    
+    Args:
+        C: Optional min-cut array for push_relabel_mincut variant
     """
     d = np.full(n, n, dtype=int)
     d[t] = 0
@@ -220,6 +231,18 @@ def run_global_relabel(probes, A, f, h, e, s, t, n):
     while len(q) > 0:
         current_layer = np.zeros(n)
         current_layer[q] = 1.0
+
+        hint_probe = {
+            "h": np.copy(d),
+            "e": np.copy(e),
+            "f_h": np.copy(f),
+            "active_nodes": current_layer,
+            "phase": _phase_one_hot(PushRelabelPhase.BFS),
+        }
+        
+        # Include c_h if we're doing mincut variant
+        if C is not None:
+            hint_probe["c_h"] = np.copy(C)
 
         probing.push(
             probes,
@@ -374,5 +397,123 @@ def push_relabel(A: np.ndarray, s: int, t: int) -> _Out:
 
 
 def push_relabel_mincut(A: np.ndarray, s: int, t: int) -> _Out:
-    # TODO: Not implemented yet
-    return _push_relabel_impl(A, s, t, None)
+    """Push-relabel algorithm with min-cut output."""
+    n = A.shape[0]
+    probes = probing.initialize(SPECS["push_relabel_mincut"])
+    
+    f = np.zeros_like(A)
+    h = np.zeros(n, dtype=int)
+    e = np.zeros(n)
+    C = _minimum_cut(A, s, t)  # Get the min-cut partition
+
+    # Preflow: saturate source edges
+    h[s] = n
+    for v in range(n):
+        if A[s, v] > 0:
+            flow = A[s, v]
+            f[s, v] = flow
+            f[v, s] = -flow
+            e[v] += flow
+            e[s] -= flow
+
+    probing.push(
+        probes,
+        clrs.Stage.INPUT,
+        next_probe={
+            "pos": np.arange(n) * 1.0 / n,
+            "s": probing.mask_one(s, n),
+            "t": probing.mask_one(t, n),
+            "A": np.copy(A),
+            "adj": (A > 0).astype(float),
+        },
+    )
+
+    global_relabel_freq = n**2
+    steps_since_relabel = 0
+    step = 0
+
+    while True:
+        # perform global-relabel using BFS
+        if steps_since_relabel >= global_relabel_freq:
+            h = run_global_relabel(probes, A, f, h, e, s, t, n, C)
+            steps_since_relabel = 0
+            step += 1
+
+        # Get active nodes
+        active_mask = e > 0
+        active_mask[s] = False
+        active_mask[t] = False
+        current_active_nodes = np.where(active_mask)[0]
+
+        # Check if we are done
+        if len(current_active_nodes) == 0:
+            if step == 0:
+                probing.push(
+                    probes,
+                    clrs.Stage.HINT,
+                    next_probe={
+                        "h": np.copy(h),
+                        "e": np.copy(e),
+                        "f_h": np.copy(f),
+                        "c_h": np.copy(C),
+                        "active_nodes": np.zeros(n),
+                        "phase": _phase_one_hot(PushRelabelPhase.PUSH_RELABEL),
+                    },
+                )
+            break
+
+        probing.push(
+            probes,
+            clrs.Stage.HINT,
+            next_probe={
+                "h": np.copy(h),
+                "e": np.copy(e),
+                "f_h": np.copy(f),
+                "c_h": np.copy(C),
+                "active_nodes": active_mask.astype(float),
+                "phase": _phase_one_hot(PushRelabelPhase.PUSH_RELABEL),
+            },
+        )
+        steps_since_relabel += 1
+        step += 1
+
+        # Discharge stage
+        for u in current_active_nodes:
+            if e[u] <= 0:
+                continue
+
+            # Pushing
+            for v in range(n):
+                residual = A[u, v] - f[u, v]
+                if residual > 0 and h[u] == h[v] + 1:
+                    delta = min(e[u], residual)
+                    if delta > 0:
+                        f[u, v] += delta
+                        f[v, u] -= delta
+                        e[u] -= delta
+                        e[v] += delta
+                        if e[u] == 0:
+                            break
+
+            # Relabeling
+            if e[u] > 0:
+                min_h = np.inf
+                for v in range(n):
+                    residual = A[u, v] - f[u, v]
+                    if residual > 0:
+                        min_h = min(min_h, h[v])
+
+                if min_h != np.inf:
+                    h[u] = min_h + 1
+
+    probing.push(
+        probes,
+        clrs.Stage.OUTPUT,
+        next_probe={
+            "f": np.copy(f),
+            "c": np.copy(C),
+        },
+    )
+    probing.finalize(probes)
+
+    return f, probes

@@ -8,7 +8,7 @@ import torch
 import typer
 
 from config.hyperparameters import HP_SPACE
-from nn.models import EncodeProcessDecode, MF_Net, MF_NetPipeline
+from nn.models import EncodeProcessDecode, MF_Net, MF_NetPipeline, PR_Net
 from utils.data import load_dataset
 from utils.experiment_utils import Experiment, init_runs, run_exp, set_seed
 from utils.experiments import evaluate
@@ -28,12 +28,14 @@ def choose_default_dtype(name: str):
 
 
 def choose_model(name: str):
-    assert name in ["epd", "mf_net", "mf_net_pipe", "mf_net_res"]
+    assert name in ["epd", "mf_net", "mf_net_pipe", "mf_net_res", "pr_net"]
 
     if name == "epd":
         model_class = EncodeProcessDecode
     elif name == "mf_net":
         model_class = MF_Net
+    elif name == "pr_net":
+        model_class = PR_Net
     else:
         model_class = MF_NetPipeline
 
