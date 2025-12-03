@@ -1,14 +1,21 @@
+from random import random
+from typing import Callable, Dict, List
+
 import clrs
 import torch
 
 from nn import losses as loss
-from nn.models.impl import _dimensions, _bfs_op_mask, _expand_to, \
-    _get_fts, _hints_i, _own_hints_i, _reset_hints
-from nn.models.impl import decoders
 from nn.models.epd import EncodeProcessDecode_Impl as Net
-
-from random import random
-from typing import Callable, Dict, List
+from nn.models.impl import (
+    _bfs_op_mask,
+    _dimensions,
+    _expand_to,
+    _get_fts,
+    _hints_i,
+    _own_hints_i,
+    _reset_hints,
+    decoders,
+)
 from utils import is_not_done_broadcast
 from utils.data import adj_mat, edge_attr_mat
 

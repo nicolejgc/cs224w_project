@@ -1,8 +1,7 @@
+from typing import List, Tuple
+
 import clrs
 import numpy as np
-from typing import List, Tuple
-from norm.performance import Timer
-
 
 _DataPoint = clrs.DataPoint
 _Trajectory = clrs.Trajectory

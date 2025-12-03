@@ -1,5 +1,14 @@
 import clrs
-from utils.metrics import accuracy, eval_one, mse, mask_fn, eval_categorical, masked_mae, masked_mse
+
+from utils.metrics import (
+    accuracy,
+    eval_categorical,
+    eval_one,
+    mask_fn,
+    masked_mae,
+    masked_mse,
+    mse,
+)
 
 _Type = clrs.Type
 

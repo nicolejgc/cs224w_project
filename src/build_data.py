@@ -1,17 +1,18 @@
-import numpy as np
-import networkx as nx
-import typer
 import os
-
-from clrs._src.probing import ProbesDict
-from config.data import DATA_SETTINGS
 from functools import partial
 from math import log
+from pathlib import Path
+
+import networkx as nx
+import numpy as np
+import typer
+from clrs._src.probing import ProbesDict
 from numpy.random import default_rng
 from numpy.typing import NDArray
-from pathlib import Path
+
+from config.data import DATA_SETTINGS
 from utils.data import algorithms
-from utils.data.graphs import erdos_renyi_full, two_community, bipartite
+from utils.data.graphs import bipartite, erdos_renyi_full, two_community
 from utils.io import dump
 from utils.types import Algorithm
 

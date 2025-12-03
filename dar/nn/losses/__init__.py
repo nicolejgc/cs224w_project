@@ -1,7 +1,8 @@
 import clrs
 import torch
-from utils.data import adj_mat
+
 from nn.models.impl import _expand_to
+from utils.data import adj_mat
 
 _Feedback = clrs.Feedback
 _Location = clrs.Location
@@ -16,7 +17,7 @@ EPS = 1e-12
 
 def cross_entropy(y_pred, y_true, num_classes):
     from torch import mean, sum
-    from torch.nn.functional import one_hot, log_softmax
+    from torch.nn.functional import log_softmax, one_hot
     return mean(-sum(
         one_hot(y_true, num_classes) * log_softmax(y_pred, dim=-1),
         dim=-1
@@ -126,8 +127,8 @@ def min_cut(S, inputs, device='cpu', reducer=torch.mean):
 
 
 def hint_loss(preds, truth, feedback, alpha, device):
-    import torch
     import numpy as np
+    import torch
 
     losses = []
     hint_mask = []

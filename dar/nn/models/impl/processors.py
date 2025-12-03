@@ -1,6 +1,7 @@
 import torch
-from nn.layers import MpnnConv
 from torch.nn import Linear, Module, ReLU, Sequential
+
+from nn.layers import MpnnConv
 
 
 class MPNN(Module):

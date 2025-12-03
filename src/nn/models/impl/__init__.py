@@ -3,7 +3,6 @@ import torch
 
 from . import decoders
 
-
 _Feedback = clrs.Feedback
 _Spec = clrs.Spec
 _Stage = clrs.Stage

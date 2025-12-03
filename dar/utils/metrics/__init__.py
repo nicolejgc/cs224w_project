@@ -1,7 +1,12 @@
 import numpy as np
 
-from ._heuristic import constraints_accuracy, objective_node_accuracy, overall_accuracy  # noqa: F401
 from config.vars import CLASSIFICATION_ERROR_DECIMALS, REGRESSION_ERROR_DECIMALS
+
+from ._heuristic import (  # noqa: F401
+    constraints_accuracy,
+    objective_node_accuracy,
+    overall_accuracy,
+)
 
 
 def accuracy(y_pred, y_true):

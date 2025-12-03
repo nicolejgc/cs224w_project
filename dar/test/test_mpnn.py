@@ -1,23 +1,25 @@
-import os, sys
+import os
+import sys
 
 sys.path.insert(0, os.getcwd())  # noqa: E401, E702
-
-from nn.layers import MpnnConv
 
 import os.path as osp
 
 import torch
 import torch.nn.functional as F
-from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
+from torch.nn import Linear, Sequential
+from torch_geometric.datasets import Planetoid
 from torch_geometric.utils import to_dense_adj
-from torch.nn import Sequential, Linear
+
+from nn.layers import MpnnConv
 
 
 def set_seed(seed):
-    import torch
     import random
+
     import numpy as np
+    import torch
 
     torch.manual_seed(seed)
     random.seed(seed)

@@ -1,13 +1,13 @@
-import clrs
-import numpy as np
-import chex
-import networkx as nx
-
-from ._specs import SPECS
-from clrs._src import probing
-from clrs._src.probing import ProbesDict
 from typing import Tuple
 
+import chex
+import clrs
+import networkx as nx
+import numpy as np
+from clrs._src import probing
+from clrs._src.probing import ProbesDict
+
+from ._specs import SPECS
 
 _Stage = clrs.Stage
 _Location = clrs.Location

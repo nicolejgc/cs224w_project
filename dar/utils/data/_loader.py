@@ -1,15 +1,17 @@
+from pathlib import Path
+from typing import List, Optional, Tuple, Union
+
 import clrs
 import numpy as np
 import torch
+from clrs._src.probing import split_stages
+from norm.io import load
+from torch import as_tensor, index_select
+
+from utils.types import Algorithm
 
 from ._helpers import batch_hints_helper
 from .algorithms import SPECS
-from clrs._src.probing import split_stages
-from norm.io import load
-from pathlib import Path
-from torch import as_tensor, index_select
-from typing import List, Optional, Tuple, Union
-from utils.types import Algorithm
 
 _DataPoint = clrs.DataPoint
 _Spec = clrs.Spec

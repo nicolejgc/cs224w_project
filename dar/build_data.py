@@ -1,16 +1,17 @@
-import numpy as np
-import typer
 import os
-
-from config.data import DATA_SETTINGS
 from functools import partial
 from math import log
+from pathlib import Path
+
+import numpy as np
+import typer
 from norm.io import dump
 from numpy.random import default_rng
 from numpy.typing import NDArray
-from pathlib import Path
+
+from config.data import DATA_SETTINGS
 from utils.data import algorithms
-from utils.data.graphs import erdos_renyi_full, two_community, bipartite
+from utils.data.graphs import bipartite, erdos_renyi_full, two_community
 from utils.types import Algorithm
 
 

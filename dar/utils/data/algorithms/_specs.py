@@ -1,5 +1,6 @@
-import clrs
 import types
+
+import clrs
 
 _Stage = clrs.Stage
 _Location = clrs.Location

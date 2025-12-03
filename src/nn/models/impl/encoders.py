@@ -1,6 +1,6 @@
 import clrs
 import torch
-from torch.nn import Module, Sequential, Linear
+from torch.nn import Linear, Module, Sequential
 
 _DataPoint = clrs.DataPoint
 _Spec = clrs.Spec

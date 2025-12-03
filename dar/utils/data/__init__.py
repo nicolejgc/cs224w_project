@@ -1,4 +1,4 @@
-from ._loader import load_dataset, Loader  # noqa: F401
+from ._loader import Loader, load_dataset  # noqa: F401
 
 
 def adj_mat(features):

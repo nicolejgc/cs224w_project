@@ -1,16 +1,22 @@
+from typing import Callable, Dict, List
+
 import clrs
 import torch
-
-from nn import losses as loss
-from nn.models.impl import _dimensions, _expand, _hints_i, _own_hints_i
-from nn.models.impl import decoders
-from nn.models.impl import encoders
-from nn.models.impl import processors
-from utils import is_not_done_broadcast
-from utils.data import adj_mat, edge_attr_mat
-from typing import Callable, Dict, List
 from torch.nn import Module, ModuleDict
 from torch.nn.functional import relu
+
+from nn import losses as loss
+from nn.models.impl import (
+    _dimensions,
+    _expand,
+    _hints_i,
+    _own_hints_i,
+    decoders,
+    encoders,
+    processors,
+)
+from utils import is_not_done_broadcast
+from utils.data import adj_mat, edge_attr_mat
 
 Result = Dict[str, clrs.DataPoint]
 

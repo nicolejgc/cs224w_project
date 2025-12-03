@@ -1,19 +1,20 @@
-import clrs
 import os
-import torch
-import typer
-
-from config.hyperparameters import HP_SPACE
 from functools import partial
-from nn.models import EncodeProcessDecode, MF_Net, MF_NetPipeline
 from pathlib import Path
 from statistics import mean, stdev
-from utils.data import load_dataset
-from utils.experiments import evaluate
-from utils.types import Algorithm
+
+import clrs
+import torch
+import typer
 from norm import set_seed
 from norm.experiments import Experiment, init_runs, run_exp
 from norm.io import dump, load
+
+from config.hyperparameters import HP_SPACE
+from nn.models import EncodeProcessDecode, MF_Net, MF_NetPipeline
+from utils.data import load_dataset
+from utils.experiments import evaluate
+from utils.types import Algorithm
 
 app = typer.Typer(add_completion=False)
 

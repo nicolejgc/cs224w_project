@@ -1,5 +1,6 @@
-from functools import partial
 import random as rng
+from functools import partial
+
 
 def integer(a: int, b: int):
     return rng.randint(a, b)

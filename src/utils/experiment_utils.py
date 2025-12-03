@@ -1,23 +1,26 @@
 """Experiment utilities for managing runs and experiments."""
 
-from clrs import Model
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from pathlib import Path
 from statistics import mean, stdev
-from torch.optim import Optimizer
 from typing import Any, Callable, Dict, List
-from utils.io import dump
+
+from clrs import Model
 from ray.experimental import tqdm_ray
-import os
+from torch.optim import Optimizer
+
+from utils.io import dump
 
 
 def set_seed(seed):
     """Set random seed for reproducibility."""
+    import random
+
     import numpy as np
     import torch
-    import random
 
     random.seed(seed)
     np.random.seed(seed)

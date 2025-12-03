@@ -1,6 +1,6 @@
 from functools import partial
-from norm.experiments.samplers import integer, uniform
 
+from norm.experiments.samplers import integer, uniform
 
 _LARGE = {
     'model': dict(num_hidden=partial(integer, a=16, b=512),

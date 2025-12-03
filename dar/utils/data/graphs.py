@@ -1,9 +1,10 @@
-import numpy as np
-import networkx as nx
 from itertools import product
-from numpy.typing import NDArray
-from numpy.random import Generator, default_rng
 from typing import Optional
+
+import networkx as nx
+import numpy as np
+from numpy.random import Generator, default_rng
+from numpy.typing import NDArray
 
 
 def _make_weights_undirected(w):

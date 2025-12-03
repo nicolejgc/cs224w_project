@@ -1,1 +1,1 @@
-from .evaluation import evaluate, EVAL_FN  # noqa: F401
+from .evaluation import EVAL_FN, evaluate  # noqa: F401

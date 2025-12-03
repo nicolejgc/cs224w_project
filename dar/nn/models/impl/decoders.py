@@ -1,8 +1,9 @@
 
+from typing import Dict
+
 import clrs
 import torch
-from torch.nn import Module, Sequential, Linear
-from typing import Dict
+from torch.nn import Linear, Module, Sequential
 
 _INFINITY = 1e5
 
