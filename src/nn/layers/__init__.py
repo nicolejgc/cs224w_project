@@ -1,1 +1,1 @@
-from .mpnn import MpnnConv, SparseMpnnConv  # noqa
+from .mpnn import MpnnConv  # noqa

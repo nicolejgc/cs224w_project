@@ -81,18 +81,18 @@ def valid(
     data_path: Path,
     model: str = "epd",
     hint_mode: str = "io",
-    max_steps: int = None,
-    num_cpus: int = None,
+    max_steps: int | None = None,
+    num_cpus: int | None = None,
     num_gpus: int = 1,
     nw: int = 5,
     no_feats: str = "adj",
     noise: bool = False,
     processor: str = "pgn",
     aggregator: str = "max",
-    save_path: Path = "src/runs",
+    save_path: Path = Path("src/runs"),
     dtype: str = "float32",
     num_test_trials: int = 5,
-    seed: int = None,
+    seed: int | None = None,
 ):
     torch.set_default_dtype(choose_default_dtype(dtype))
 
@@ -177,7 +177,7 @@ def test(
     alg: Algorithm,
     test_path: Path,
     data_path: Path,
-    max_steps: int = None,
+    max_steps: int | None = None,
     test_set: str = "test",
 ):
     from utils.metrics import eval_categorical, masked_mae
