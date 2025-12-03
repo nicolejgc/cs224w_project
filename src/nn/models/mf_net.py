@@ -88,7 +88,7 @@ class MF_Net(clrs.Model):
 
         preds, hint_preds = self.net_(feedback.features)
 
-        total_loss = 0.0
+        total_loss: float | torch.Tensor = 0.0
         n_hints = 0
         if self.decode_hints:
             hint_loss = 0.0
@@ -101,15 +101,18 @@ class MF_Net(clrs.Model):
                     hint_preds, truth, feedback, self.alpha, self.device
                 )
 
-            total_loss += hint_loss / n_hints
+            if n_hints > 0:
+                total_loss += hint_loss / n_hints
 
         for truth in feedback.outputs:
             total_loss += loss.output_loss(
                 preds, truth, feedback, self.alpha, self.device
             )
 
-        total_loss.backward()
+        if not isinstance(total_loss, torch.Tensor):
+            return 0.0
 
+        total_loss.backward()
         self.optimizer.step()
 
         return total_loss.item()
@@ -129,7 +132,7 @@ class MF_Net(clrs.Model):
     @torch.no_grad()
     def verbose_loss(self, feedback: _Feedback, preds, aux_preds):
         losses = {}
-        total_loss = 0
+        total_loss = 0.0
         n_hints = 0
         for truth in feedback.features.hints:
             if self.no_feats(truth.name):
@@ -142,14 +145,17 @@ class MF_Net(clrs.Model):
             )
             total_loss += losses["aux_" + truth.name]
 
-        total_loss /= n_hints
+        if n_hints > 0:
+            total_loss /= n_hints
 
         for truth in feedback.outputs:
             total_loss += loss.output_loss(
                 preds, truth, feedback, self.alpha, self.device
             )
 
-        return losses, total_loss.item()
+        return losses, (
+            total_loss.item() if isinstance(total_loss, torch.Tensor) else 0.0
+        )
 
 
 class MFNet_Impl(torch.nn.Module):
@@ -165,19 +171,19 @@ class MFNet_Impl(torch.nn.Module):
         no_feats: List,
         add_noise: bool = False,
         bias: bool = True,
-        max_steps: int = None,
-        load_path: str = None,
+        max_steps: int | None = None,
+        load_path: str | None = None,
         annealing: bool = True,
         device: str = "cpu",
     ):
         super().__init__()
 
-        self.num_hidden = num_hidden
-        self.decode_hints = decode_hints
+        self.num_hidden = num_hidden  # type: ignore
+        self.decode_hints = decode_hints  # type: ignore
 
-        self.max_steps = max_steps
+        self.max_steps = max_steps  # type: ignore
 
-        self.no_feats = lambda x: x in no_feats or x.startswith("__")  # noqa
+        self.no_feats = lambda x: x in no_feats or x.startswith("__")  # type: ignore
 
         self.bfs_net = Net(
             spec,
@@ -207,13 +213,14 @@ class MFNet_Impl(torch.nn.Module):
 
         del self.bfs_net.encoders["c_h"]
 
-        self.is_annealing_enabled = annealing
-        self.annealing_state = 0
-        self.device = device
-        self.spec = spec
-        self.encode_hints = encode_hints
+        self.is_annealing_enabled = annealing  # type: ignore
+        self.annealing_state = 0  # type: ignore
+        self.device = device  # type: ignore
+        self.spec = spec  # type: ignore
+        self.encode_hints = encode_hints  # type: ignore
+        self.hiddens = None  # type: ignore
+
         self.to(device)
-        self.hiddens = None
 
     def op(self, trajectories, h_bfs, adj, is_bfs_op):
         _, h_bfs, h_preds_bfs = self.bfs_net.step(trajectories, h_bfs, adj)
