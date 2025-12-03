@@ -10,7 +10,7 @@ from torch.optim import Optimizer
 from typing import Any, Callable, Dict, List
 from utils.io import dump
 from ray.experimental import tqdm_ray
-from tqdm import tqdm
+import os
 
 
 def set_seed(seed):
@@ -389,6 +389,9 @@ def run_test(
     LOW_ = 0.0
     HIGH_ = 1e4
 
+    if not save_path.exists():
+        os.makedirs(save_path, exist_ok=True)
+
     def closure():
         model = run.model_fn()
         best = LOW_ if higher_is_better else HIGH_
@@ -423,6 +426,8 @@ def run_test(
 
                 if is_better(vl_stats["score"], best):
                     best = vl_stats["score"]
+                    print("do I ever reach here")
+                    print(save_path)
                     dump(model.net_.state_dict(), save_path / f"model_{trial}.pth")
 
         return losses, tr_scores, vl_scores
@@ -452,6 +457,8 @@ def run_test(
 
 def run_exp(experiment: Experiment, tr_set, vl_set, ts_set, save_path: Path):
     """Run full experiment: validation and testing."""
+    save_path = save_path.resolve()
+
     best_run = validate(
         experiment=experiment, tr_set=tr_set, vl_set=vl_set, save_path=save_path
     )

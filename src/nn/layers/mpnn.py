@@ -84,7 +84,7 @@ class MpnnConv(Module):
 
         if self.aggregator == "mean":
             msg = (msg * adj.unsqueeze(-1)).sum(1)
-            msg = msg / torch.sum(adj, dim=-1, keepdims=True)
+            msg = msg / torch.sum(adj, dim=-1, keepdim=True)
         elif self.aggregator == "max":
             max_arg = torch.where(
                 adj.unsqueeze(-1).bool(), msg, torch.tensor(-Inf).to(msg.device)
