@@ -52,5 +52,8 @@ HP_SPACE = {
     'ff_small': _SMALL_FF,
     'ff_mc_small': _SMALL_FF,
     'ff_one': _ONE_FF,
-    'ff_mc_one': _ONE_FF_MC
+    'ff_mc_one': _ONE_FF_MC,
+    # Push-relabel (can tune separately later)
+    'pr_mc_one': _ONE_FF_MC,
+    'pr_mc_small': _SMALL_FF,
 }

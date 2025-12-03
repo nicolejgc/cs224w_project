@@ -141,15 +141,17 @@ def hint_loss(preds, truth, feedback, alpha, device):
         h_mask = (y_pred != clrs.OutputClass.MASKED) * 1.0
 
         if truth.type_ == _Type.SCALAR:
-
-            loss = (y_pred - (y * adj))**2
-            # if truth.name == "f_h":
-            #    loss = alpha * loss + (1-alpha) * max_flow(y_pred, feedback.features.inputs, device=device
-            if truth.name == "f_h":
+            # For EDGE location (like f_h), multiply by adj to mask non-edges
+            # For NODE location (like h, e, active_nodes), use y directly
+            if truth.location == _Location.EDGE:
+                loss = (y_pred - (y * adj))**2
                 hint_mask.append(h_mask.all(-1).all(-1))
                 loss = (loss * h_mask).sum(-1).sum(-1) / adj.sum(-1).sum(-1).to(device)
             else:
+                # NODE location SCALAR hints
+                loss = (y_pred - y)**2
                 hint_mask.append(h_mask.all(-1))
+                loss = (loss * h_mask).sum(-1) / (h_mask.sum(-1) + EPS)
 
         elif truth.type_ == _Type.MASK:
             hint_mask.append(h_mask.all(-1))
@@ -158,7 +160,17 @@ def hint_loss(preds, truth, feedback, alpha, device):
             mask *= h_mask
             loss = torch.sum(loss * mask, dim=-1) / (torch.sum(mask, dim=-1) + EPS)
         elif truth.type_ == _Type.MASK_ONE:
-            loss = -torch.sum(y * torch.nn.functional.log_softmax(y_pred, dim=-1) * h_mask, dim=-1)
+            # MASK_ONE can be at GRAPH or NODE location
+            if truth.location == _Location.GRAPH:
+                # GRAPH location (like phase): [batch, num_classes]
+                hint_mask.append(h_mask.all(-1))
+                loss = -torch.sum(y * torch.nn.functional.log_softmax(y_pred, dim=-1) * h_mask, dim=-1)
+            else:
+                # NODE location (like c_h): [batch, nodes, num_classes]
+                hint_mask.append(h_mask.all(-1).all(-1))  # [batch]
+                loss = -torch.sum(y * torch.nn.functional.log_softmax(y_pred, dim=-1) * h_mask, dim=-1)
+                # Reduce from [batch, nodes] to [batch]
+                loss = loss.mean(-1)
         elif truth.type_ == _Type.POINTER:
             from torch.nn.functional import log_softmax, one_hot
             hint_mask.append(h_mask.all(-1).all(-1))

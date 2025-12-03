@@ -49,6 +49,7 @@ _INITS = {
     Algorithm.ff: max_flow_init,
     Algorithm.ffmc: max_flow_init,
     Algorithm.prp: max_flow_init,
+    Algorithm.prmc: max_flow_init,
 }
 
 _GRAPH_DISTRIB = {
