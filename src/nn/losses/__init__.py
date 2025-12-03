@@ -18,34 +18,38 @@ EPS = 1e-12
 def cross_entropy(y_pred, y_true, num_classes):
     from torch import mean, sum
     from torch.nn.functional import log_softmax, one_hot
-    return mean(-sum(
-        one_hot(y_true, num_classes) * log_softmax(y_pred, dim=-1),
-        dim=-1
-    ), dim=-1)
+
+    return mean(
+        -sum(one_hot(y_true, num_classes) * log_softmax(y_pred, dim=-1), dim=-1), dim=-1
+    )
 
 
 def mse_loss(y_pred, y_true):
     from torch import mean
-    return mean((y_pred - y_true)**2, dim=-1)
+
+    return mean((y_pred - y_true) ** 2, dim=-1)
 
 
 def mask_loss(y_pred, y_true):
     from torch import abs, exp, log1p, maximum, zeros_like
-    return maximum(y_pred, zeros_like(y_pred)) - y_pred * y_true + log1p(exp(-abs(y_pred)))
+
+    return (
+        maximum(y_pred, zeros_like(y_pred)) - y_pred * y_true + log1p(exp(-abs(y_pred)))
+    )
 
 
-def dual_loss(dual_y, inputs, alpha, device='cpu'):
+def dual_loss(dual_y, inputs, alpha, device="cpu"):
     from torch import mean, sum, take_along_dim
     from torch.linalg import vector_norm
 
     for inp in inputs:
-        if inp.name == 'adj':
+        if inp.name == "adj":
             adj = inp.data.to(device)
-        elif inp.name == 'A':
+        elif inp.name == "A":
             weights = inp.data.to(device)
-        elif inp.name == 's':
+        elif inp.name == "s":
             source = inp.data.to(device)
-        elif inp.name == 't':
+        elif inp.name == "t":
             target = inp.data.to(device)
 
     source_idxs = source.argmax(dim=-1, keepdims=True)
@@ -67,19 +71,23 @@ def dual_loss(dual_y, inputs, alpha, device='cpu'):
     # penalty term constraint: \forall u: y(u) >= 0
     e3 = -dual_y * ((dual_y < 0) * 1.0)
 
-    return -e1.mean() + mean(sum(e2, dim=-1)) + mean(sum(e3, dim=-1)) + alpha * vector_norm(e1, ord=2)**2
+    return (
+        -e1.mean()
+        + mean(sum(e2, dim=-1))
+        + mean(sum(e3, dim=-1))
+        + alpha * vector_norm(e1, ord=2) ** 2
+    )
 
 
-def max_flow(x, inputs, device='cpu'):
-
+def max_flow(x, inputs, device="cpu"):
     from torch import bmm, mean, sum
 
     batch_len, num_nodes, _ = x.shape
 
     for inp in inputs:
-        if inp.name == 's':
+        if inp.name == "s":
             source = inp.data.to(device)
-        elif inp.name == 't':
+        elif inp.name == "t":
             target = inp.data.to(device)
 
     # main objective: max sum_{(s,v) \in E} x_sv
@@ -93,15 +101,15 @@ def max_flow(x, inputs, device='cpu'):
     return e1 + e2
 
 
-def min_cut(S, inputs, device='cpu', reducer=torch.mean):
+def min_cut(S, inputs, device="cpu", reducer=torch.mean):
     import torch
 
     for inp in inputs:
-        if inp.name == 'A':
+        if inp.name == "A":
             capacity = inp.data.to(device)
-        elif inp.name == 's':
+        elif inp.name == "s":
             source = inp.data.to(device)
-        elif inp.name == 't':
+        elif inp.name == "t":
             target = inp.data.to(device)
 
     num_cuts = S.shape[-1]
@@ -109,10 +117,14 @@ def min_cut(S, inputs, device='cpu', reducer=torch.mean):
     S = S.softmax(-1)
     S_t = S.transpose(1, 2)
 
-    l_cut = _3d_trace(S_t @ capacity @ S) / _3d_trace(S_t @ _3d_diag(capacity.sum(-1)) @ S)
-    l_ort = torch.linalg.matrix_norm(S_t @ S / torch.linalg.matrix_norm(S_t @ S, keepdims=True) -
-                                     torch.eye(num_cuts, device=device) / torch.tensor(num_cuts, device=device).sqrt()
-                                     )
+    l_cut = _3d_trace(S_t @ capacity @ S) / _3d_trace(
+        S_t @ _3d_diag(capacity.sum(-1)) @ S
+    )
+    l_ort = torch.linalg.matrix_norm(
+        S_t @ S / torch.linalg.matrix_norm(S_t @ S, keepdims=True)
+        - torch.eye(num_cuts, device=device)
+        / torch.tensor(num_cuts, device=device).sqrt()
+    )
 
     source = torch.bmm(source.unsqueeze(1), S).squeeze()
     target = torch.bmm(target.unsqueeze(1), S).squeeze()
@@ -122,7 +134,7 @@ def min_cut(S, inputs, device='cpu', reducer=torch.mean):
     return reducer(loss) if reducer else loss, {
         "l_cut": reducer(-l_cut).detach() if reducer else (-l_cut).detach(),
         "l_ort": reducer(l_ort).detach() if reducer else l_ort.detach(),
-        "l_dot": reducer(l_dot).detach() if reducer else l_dot.detach()
+        "l_dot": reducer(l_dot).detach() if reducer else l_dot.detach(),
     }
 
 
@@ -141,15 +153,24 @@ def hint_loss(preds, truth, feedback, alpha, device):
         h_mask = (y_pred != clrs.OutputClass.MASKED) * 1.0
 
         if truth.type_ == _Type.SCALAR:
-
-            loss = (y_pred - (y * adj))**2
-            # if truth.name == "f_h":
-            #    loss = alpha * loss + (1-alpha) * max_flow(y_pred, feedback.features.inputs, device=device
-            if truth.name == "f_h":
-                hint_mask.append(h_mask.all(-1).all(-1))
-                loss = (loss * h_mask).sum(-1).sum(-1) / adj.sum(-1).sum(-1).to(device)
+            if truth.location == clrs.Location.EDGE:
+                loss = (y_pred - (y * adj)) ** 2
+                # if truth.name == "f_h":
+                #    loss = alpha * loss + (1-alpha) * max_flow(y_pred, feedback.features.inputs, device=device
+                if truth.name == "f_h":
+                    hint_mask.append(h_mask.all(-1).all(-1))
+                    loss = (loss * h_mask).sum(-1).sum(-1) / adj.sum(-1).sum(-1).to(
+                        device
+                    )
+                else:
+                    hint_mask.append(h_mask.all(-1))
             else:
+                loss = (y_pred - y) ** 2
+
                 hint_mask.append(h_mask.all(-1))
+
+                # Sum over the single node dimension (N) and normalize by number of nodes
+                loss = (loss * h_mask).sum(-1) / (h_mask.sum(-1))
 
         elif truth.type_ == _Type.MASK:
             hint_mask.append(h_mask.all(-1))
@@ -158,9 +179,12 @@ def hint_loss(preds, truth, feedback, alpha, device):
             mask *= h_mask
             loss = torch.sum(loss * mask, dim=-1) / (torch.sum(mask, dim=-1) + EPS)
         elif truth.type_ == _Type.MASK_ONE:
-            loss = -torch.sum(y * torch.nn.functional.log_softmax(y_pred, dim=-1) * h_mask, dim=-1)
+            loss = -torch.sum(
+                y * torch.nn.functional.log_softmax(y_pred, dim=-1) * h_mask, dim=-1
+            )
         elif truth.type_ == _Type.POINTER:
             from torch.nn.functional import log_softmax, one_hot
+
             hint_mask.append(h_mask.all(-1).all(-1))
             # cross entropy
             loss = one_hot(y.long(), y_pred.shape[-1]) * log_softmax(y_pred, dim=-1)
@@ -168,16 +192,21 @@ def hint_loss(preds, truth, feedback, alpha, device):
 
         elif truth.type_ == _Type.CATEGORICAL:
             from torch.nn.functional import log_softmax, one_hot
+
             # cross entropy
             hint_mask.append(h_mask.all(-1).all(-1))
-            loss = one_hot(y.argmax(-1).long(), y_pred.shape[-1]) * log_softmax(y_pred, dim=-1)
+            loss = one_hot(y.argmax(-1).long(), y_pred.shape[-1]) * log_softmax(
+                y_pred, dim=-1
+            )
             loss = -torch.sum(loss * h_mask, dim=-1).mean(-1)
 
         losses.append(loss)
 
     losses = torch.stack(losses)
     hint_mask = torch.stack(hint_mask) * 1.0
-    is_not_done = _is_not_done_broadcast(feedback.features.lengths, np.arange(truth.data.shape[0] - 1)[:, None], losses)
+    is_not_done = _is_not_done_broadcast(
+        feedback.features.lengths, np.arange(truth.data.shape[0] - 1)[:, None], losses
+    )
     mask = is_not_done * _expand_to(hint_mask, len(is_not_done.shape))
 
     return (losses * mask).sum() / mask.sum()
@@ -185,6 +214,7 @@ def hint_loss(preds, truth, feedback, alpha, device):
 
 def output_loss(preds, truth, feedback, alpha, device):
     import torch
+
     y_pred = preds[truth.name]
     y = truth.data.to(device)
     adj = adj_mat(feedback.features).to(device)
@@ -195,9 +225,11 @@ def output_loss(preds, truth, feedback, alpha, device):
         y = y.long()
         return torch.mean(cross_entropy(y_pred, y, num_classes=y_pred.shape[-1]))
     elif truth.type_ == _Type.CATEGORICAL:
-        return torch.mean(cross_entropy(y_pred, y.argmax(-1).long(), num_classes=y_pred.shape[-1]))
+        return torch.mean(
+            cross_entropy(y_pred, y.argmax(-1).long(), num_classes=y_pred.shape[-1])
+        )
     elif truth.location == _Location.EDGE and truth.type_ == _Type.SCALAR:
-        loss = ((y_pred - (y * adj))**2).sum() / adj_mat(feedback.features).sum()
+        loss = ((y_pred - (y * adj)) ** 2).sum() / adj_mat(feedback.features).sum()
         # if truth.name == "f":
         #    loss = alpha * loss + (1-alpha) * max_flow(y_pred, feedback.features.inputs, device=device)
 
@@ -208,7 +240,7 @@ def output_loss(preds, truth, feedback, alpha, device):
 
 def _capacity_constraint(pred, inputs, device):
     for inp in inputs:
-        if inp.name == 'A':
+        if inp.name == "A":
             capacity = inp.data.to(device)
 
     return pred * (pred > capacity) * 1.0
@@ -224,7 +256,10 @@ def _3d_diag(A):
 
 def _is_not_done_broadcast(lengths, i, tensor):
     import torch
-    is_not_done = torch.as_tensor((lengths > i + 1) * 1.0, dtype=torch.float32).to(tensor.device)
+
+    is_not_done = torch.as_tensor((lengths > i + 1) * 1.0, dtype=torch.float32).to(
+        tensor.device
+    )
     while len(is_not_done.shape) < len(tensor.shape):
         is_not_done = is_not_done.unsqueeze(-1)
     return is_not_done
@@ -232,5 +267,5 @@ def _is_not_done_broadcast(lengths, i, tensor):
 
 def _bfs_op_mask(hints):
     for dp in hints:
-        if dp.name == '__is_bfs_op':
+        if dp.name == "__is_bfs_op":
             return dp.data
