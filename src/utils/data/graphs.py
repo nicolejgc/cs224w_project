@@ -11,12 +11,13 @@ def _make_weights_undirected(w):
     return np.triu(w) + np.triu(w, 1).T
 
 
-def _erdos_renyi(num_nodes: int,
-                 prob: float,
-                 directed: bool = False,
-                 weighted: bool = False,
-                 rng: Optional[Generator] = None) -> NDArray:
-
+def _erdos_renyi(
+    num_nodes: int,
+    prob: float,
+    directed: bool = False,
+    weighted: bool = False,
+    rng: Optional[Generator] = None,
+) -> NDArray:
     assert num_nodes >= 0 and 0 < prob <= 1
 
     if rng is None:
@@ -36,41 +37,45 @@ def _erdos_renyi(num_nodes: int,
     return adj_matrix, weights
 
 
-def erdos_renyi_full(num_nodes: int,
-                     prob: float,
-                     directed: bool = False,
-                     weighted: bool = False,
-                     rng: Optional[Generator] = None) -> NDArray:
-
-    adj_matrix, weights = _erdos_renyi(num_nodes=num_nodes,
-                                       prob=prob,
-                                       directed=directed,
-                                       weighted=weighted,
-                                       rng=rng)
+def erdos_renyi_full(
+    num_nodes: int,
+    prob: float,
+    directed: bool = False,
+    weighted: bool = False,
+    rng: Optional[Generator] = None,
+) -> NDArray:
+    adj_matrix, weights = _erdos_renyi(
+        num_nodes=num_nodes, prob=prob, directed=directed, weighted=weighted, rng=rng
+    )
 
     adj_matrix = adj_matrix.astype(dtype=np.float32)
 
     return adj_matrix * weights if weighted else adj_matrix
 
 
-def two_community(num_nodes: int,
-                  prob: float,
-                  outer_prob: float,
-                  directed: bool = False,
-                  weighted: bool = False,
-                  rng: Optional[Generator] = None) -> NDArray:
-
+def two_community(
+    num_nodes: int,
+    prob: float,
+    outer_prob: float,
+    directed: bool = False,
+    weighted: bool = False,
+    rng: Optional[Generator] = None,
+) -> NDArray:
     assert num_nodes % 2 == 0
-    adj_matrix_1, _ = _erdos_renyi(num_nodes=num_nodes // 2,
-                                   prob=prob,
-                                   directed=directed,
-                                   weighted=weighted,
-                                   rng=rng)
-    adj_matrix_2, _ = _erdos_renyi(num_nodes=num_nodes // 2,
-                                   prob=prob,
-                                   directed=directed,
-                                   weighted=weighted,
-                                   rng=rng)
+    adj_matrix_1, _ = _erdos_renyi(
+        num_nodes=num_nodes // 2,
+        prob=prob,
+        directed=directed,
+        weighted=weighted,
+        rng=rng,
+    )
+    adj_matrix_2, _ = _erdos_renyi(
+        num_nodes=num_nodes // 2,
+        prob=prob,
+        directed=directed,
+        weighted=weighted,
+        rng=rng,
+    )
 
     adj_matrix = np.zeros((num_nodes, num_nodes))
 
@@ -89,7 +94,7 @@ def two_community(num_nodes: int,
     for i, e in enumerate(cart):
         if mask[i]:
             u, v = e
-            adj_matrix[u, v] = 1.
+            adj_matrix[u, v] = 1.0
 
     if not directed:
         adj_matrix = np.maximum(adj_matrix, adj_matrix.T)
@@ -97,22 +102,23 @@ def two_community(num_nodes: int,
     return adj_matrix
 
 
-def bipartite(num_nodes: int,
-              prob: float,
-              outer_prob: float = None,  # unused param
-              directed: bool = True,
-              weighted: bool = False,
-              rng: Optional[Generator] = None) -> NDArray:
-
+def bipartite(
+    num_nodes: int,
+    prob: float,
+    outer_prob: float = None,  # unused param
+    directed: bool = True,
+    weighted: bool = False,
+    rng: Optional[Generator] = None,
+) -> NDArray:
     if rng is None:
         rng = default_rng()
 
-    N = (num_nodes-2) // 2
+    N = (num_nodes - 2) // 2
 
     adj_matrix = np.zeros((num_nodes, num_nodes))
 
-    set_a = list(range(1, N+1))
-    set_b = list(range(N+1, num_nodes-1))
+    set_a = list(range(1, N + 1))
+    set_b = list(range(N + 1, num_nodes - 1))
 
     cart = list(product(set_a, set_b))
     mask = rng.binomial(n=1, p=prob, size=len(cart))
@@ -132,10 +138,10 @@ def bipartite(num_nodes: int,
     for i, e in enumerate(cart):
         if mask[i]:
             u, v = e
-            adj_matrix[u, v] = 1.
+            adj_matrix[u, v] = 1.0
 
-    adj_matrix[0, :max(set_a)+1] = 1.
-    adj_matrix[min(set_b):, -1] = 1.
+    adj_matrix[0, : max(set_a) + 1] = 1.0
+    adj_matrix[min(set_b) :, -1] = 1.0
 
     if not directed:
         adj_matrix = np.maximum(adj_matrix, adj_matrix.T)

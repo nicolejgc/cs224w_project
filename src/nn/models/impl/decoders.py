@@ -1,4 +1,3 @@
-
 from typing import Dict
 
 import clrs
@@ -16,10 +15,7 @@ _Tensor = torch.Tensor
 
 
 class Decoder(Module):
-    def __init__(self,
-                 in_features,
-                 out_features):
-
+    def __init__(self, in_features, out_features):
         super().__init__()
 
         self.in_features = in_features
@@ -34,10 +30,7 @@ class Decoder(Module):
 
 
 class DecoderPair(Module):
-    def __init__(self,
-                 in_features,
-                 out_features):
-
+    def __init__(self, in_features, out_features):
         super().__init__()
 
         self.in_features = in_features
@@ -56,11 +49,7 @@ class DecoderPair(Module):
 
 
 class DecoderEdge(Module):
-    def __init__(self,
-                 in_features,
-                 e_features,
-                 out_features):
-
+    def __init__(self, in_features, e_features, out_features):
         super().__init__()
 
         self.in_features = in_features
@@ -87,36 +76,38 @@ def new_decoder(spec, num_hidden, num_classes=None):
 
     if location == _Location.NODE:
         if type_ in [_Type.SCALAR, _Type.MASK, _Type.MASK_ONE]:
-            return Decoder(in_features=num_hidden*3, out_features=1)
+            return Decoder(in_features=num_hidden * 3, out_features=1)
         if type_ == _Type.POINTER:
-            return DecoderPair(in_features=num_hidden*3, out_features=num_hidden)
+            return DecoderPair(in_features=num_hidden * 3, out_features=num_hidden)
         if type_ == _Type.CATEGORICAL:
             assert num_classes is not None
-            return Decoder(in_features=num_hidden*3, out_features=num_classes)
+            return Decoder(in_features=num_hidden * 3, out_features=num_classes)
 
     if location == _Location.EDGE:
         if type_ == _Type.SCALAR:
-            return DecoderEdge(in_features=num_hidden*3,
-                               e_features=num_hidden,
-                               out_features=1)
+            return DecoderEdge(
+                in_features=num_hidden * 3, e_features=num_hidden, out_features=1
+            )
         if type_ == _Type.CATEGORICAL:
             assert num_classes is not None
-            return DecoderEdge(in_features=num_hidden*3, e_features=num_hidden,
-                               out_features=num_classes)
+            return DecoderEdge(
+                in_features=num_hidden * 3,
+                e_features=num_hidden,
+                out_features=num_classes,
+            )
 
     if location == _Location.GRAPH:
         if type_ in [_Type.SCALAR, _Type.MASK]:
-            return Decoder(in_features=num_hidden*3, out_features=1)
+            return Decoder(in_features=num_hidden * 3, out_features=1)
         if type_ == _Type.MASK_ONE:
             # GRAPH-level MASK_ONE (like phase) needs num_classes outputs for one-hot
             assert num_classes is not None
-            return Decoder(in_features=num_hidden*3, out_features=num_classes)
+            return Decoder(in_features=num_hidden * 3, out_features=num_classes)
 
     raise ValueError("Unrecognized specs during decoder creation.")
 
 
 def decode_from_latents(name, spec, decoder, h_t, adj, edge_attr):
-
     stage, location, type_ = spec
     if location == _Location.NODE:
         if type_ in [_Type.SCALAR, _Type.MASK, _Type.MASK_ONE]:
@@ -165,7 +156,7 @@ def postprocess(preds: Dict[str, _Tensor], spec: _Spec) -> Dict[str, _DataPoint]
         if type_ == _Type.SCALAR:
             data = data
         elif type_ == _Type.MASK:
-            data = ((data > 0.0) * 1.0)
+            data = (data > 0.0) * 1.0
         elif type_ in [_Type.MASK_ONE, _Type.CATEGORICAL]:
             data = torch.nn.functional.one_hot(data.argmax(-1), data.shape[-1]).float()
         elif type_ == _Type.POINTER:

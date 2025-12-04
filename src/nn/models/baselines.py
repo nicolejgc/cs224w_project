@@ -25,4 +25,3 @@ class NormalRandom:
                 break
 
         return randn(batch_size, num_nodes)
-

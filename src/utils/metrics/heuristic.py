@@ -3,7 +3,7 @@ def constraints_accuracy(y, w, adj):
 
     y = expand_dims(y, axis=-1)
     cons_value = transpose(y, (0, 2, 1)) - y
-    cons = ((cons_value * adj <= w))
+    cons = cons_value * adj <= w
 
     return (cons * adj).sum() / adj.sum()
 

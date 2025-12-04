@@ -63,7 +63,6 @@ def _load_probes(file_name: Path, spec: _Spec):
 
 class Loader:
     def __init__(self, file_name: Union[Path, List[Path]], spec: _Spec):
-
         if isinstance(file_name, list):
             inputs, outputs, hints = [], [], []
             for name in file_name:
@@ -98,10 +97,13 @@ class Loader:
         if batch_size:
             if batch_size > self._num_samples:
                 raise ValueError(
-                    f'Batch size {batch_size} > dataset size {self._num_samples}.')
+                    f"Batch size {batch_size} > dataset size {self._num_samples}."
+                )
 
             # Returns a fixed-size random batch.
-            raw_indices = np.random.choice(self._num_samples, (batch_size,), replace=True)
+            raw_indices = np.random.choice(
+                self._num_samples, (batch_size,), replace=True
+            )
             indices = as_tensor(raw_indices, dtype=torch.long)
 
             inputs = _subsample_data(self._inputs, indices, axis=0)
@@ -126,19 +128,18 @@ class Loader:
         lengths = self._lengths[index]
 
         for hint in hints:
-            hint.data = hint.data[:int(lengths)]
+            hint.data = hint.data[: int(lengths)]
 
         return _Feedback(_Features(inputs, hints, lengths), outputs)
 
 
-def load_dataset(split: str,
-                 algorithm: Algorithm,
-                 folder: Path) -> Tuple[Loader, _Spec]:
-
+def load_dataset(
+    split: str, algorithm: Algorithm, folder: Path
+) -> Tuple[Loader, _Spec]:
     if algorithm not in SPECS:
         raise NotImplementedError(f"No implementation of algorithm {algorithm}")
 
     spec = SPECS[algorithm]
-    loader = Loader(file_name=folder / f'{split}_{algorithm}.pkl', spec=spec)
+    loader = Loader(file_name=folder / f"{split}_{algorithm}.pkl", spec=spec)
 
     return loader, spec

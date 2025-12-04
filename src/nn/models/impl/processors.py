@@ -1,16 +1,18 @@
 import torch
 from torch.nn import Linear, Module, ReLU, Sequential
+from typing import Callable
 
 from nn.layers import MpnnConv
 
 
 class MPNN(Module):
-    def __init__(self,
-                 num_hidden: int,
-                 aggregator: str,
-                 activation: callable = None,
-                 bias: bool = True):
-
+    def __init__(
+        self,
+        num_hidden: int,
+        aggregator: str,
+        activation: Callable | None = None,
+        bias: bool = True,
+    ):
         super(MPNN, self).__init__()
 
         self.conv = MpnnConv(
@@ -26,7 +28,7 @@ class MPNN(Module):
             aggregator=aggregator,
             mid_activation=activation,
             activation=activation,
-            bias=bias
+            bias=bias,
         )
 
     def forward(self, x, adj, edge_attr):
@@ -36,11 +38,13 @@ class MPNN(Module):
 
 
 class PGN(Module):
-    def __init__(self,
-                 num_hidden: int,
-                 aggregator: str,
-                 activation: callable = None,
-                 bias: bool = True):
+    def __init__(
+        self,
+        num_hidden: int,
+        aggregator: str,
+        activation: Callable | None = None,
+        bias: bool = True,
+    ):
         super(PGN, self).__init__()
 
         self.conv = MpnnConv(
@@ -56,7 +60,7 @@ class PGN(Module):
             aggregator=aggregator,
             mid_activation=activation,
             activation=activation,
-            bias=bias
+            bias=bias,
         )
 
     def forward(self, x, adj, edge_attr):
@@ -64,7 +68,4 @@ class PGN(Module):
         return x
 
 
-PROCESSORS = {
-    'pgn': PGN,
-    'mpnn': MPNN
-}
+PROCESSORS = {"pgn": PGN, "mpnn": MPNN}

@@ -11,8 +11,9 @@ _Trajectories = List[_Trajectory]
 def _maybe_show_progress(length):
     import os
 
-    if 'SHOW_LOADER_PROGRESS' in os.environ:
+    if "SHOW_LOADER_PROGRESS" in os.environ:
         import typer
+
         return typer.progressbar(length)
 
     return None
@@ -58,8 +59,9 @@ def batch_hints_helper(traj_hints: _Trajectories) -> Tuple[_Trajectory, List[int
             name=batched_traj[i].name,
             location=batched_traj[i].location,
             type_=batched_traj[i].type_,
-            data=np.zeros((max_steps, n_samples) + hint_i.data.shape[2:]))
-        batched_traj[i].data[:hint_i.data.shape[0], :1] = hint_i.data
+            data=np.zeros((max_steps, n_samples) + hint_i.data.shape[2:]),
+        )
+        batched_traj[i].data[: hint_i.data.shape[0], :1] = hint_i.data
         if i > 0:
             assert hint_lengths[0] == hint_i.data.shape[0]
         else:
@@ -71,7 +73,9 @@ def batch_hints_helper(traj_hints: _Trajectories) -> Tuple[_Trajectory, List[int
         for i in range(len(cur_hint)):
             assert batched_traj[i].name == cur_hint[i].name
 
-            batched_traj[i].data[:cur_hint[i].data.shape[0], hint_ind:hint_ind+1] = cur_hint[i].data
+            batched_traj[i].data[
+                : cur_hint[i].data.shape[0], hint_ind : hint_ind + 1
+            ] = cur_hint[i].data
 
             if i > 0:
                 assert hint_lengths[hint_ind] == cur_hint[i].data.shape[0]

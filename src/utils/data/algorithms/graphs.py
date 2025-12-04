@@ -205,7 +205,9 @@ class PushRelabelPhase(IntEnum):
     PUSH_RELABEL = 0
     BFS = 1
 
+
 NUM_PHASES = 2  # Number of phases for one-hot encoding
+
 
 def _phase_one_hot(phase: PushRelabelPhase) -> np.ndarray:
     """Convert phase enum to one-hot encoding for MASK_ONE type."""
@@ -217,7 +219,7 @@ def _phase_one_hot(phase: PushRelabelPhase) -> np.ndarray:
 def run_global_relabel(probes, A, f, h, e, s, t, n, C=None):
     """
     Runs a backwards BFS on residual graph to relabel.
-    
+
     Args:
         C: Optional min-cut array for push_relabel_mincut variant
     """
@@ -239,7 +241,7 @@ def run_global_relabel(probes, A, f, h, e, s, t, n, C=None):
             "active_nodes": current_layer,
             "phase": _phase_one_hot(PushRelabelPhase.BFS),
         }
-        
+
         # Include c_h if we're doing mincut variant
         if C is not None:
             hint_probe["c_h"] = np.copy(C)
@@ -400,7 +402,7 @@ def push_relabel_mincut(A: np.ndarray, s: int, t: int) -> _Out:
     """Push-relabel algorithm with min-cut output."""
     n = A.shape[0]
     probes = probing.initialize(SPECS["push_relabel_mincut"])
-    
+
     f = np.zeros_like(A)
     h = np.zeros(n, dtype=int)
     e = np.zeros(n)
