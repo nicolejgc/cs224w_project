@@ -1,13 +1,13 @@
-algorithm: ford_fulkerson_mincut
+algorithm: push_relabel_mincut
 runs:
   num_runs: 1
   hp_space: ff_mc_small
   batch_size: 32
   early_stop: true
   early_stop_patience: 20
-  train_steps: 5000
+  train_steps: 100
   verbose: true
-  log_every: 100
+  log_every: 10
 experiment:
   name: mc
   higher_is_better: false

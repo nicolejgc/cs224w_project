@@ -87,19 +87,19 @@ def valid(
     max_steps: int | None = None,
     num_cpus: int | None = None,
     num_gpus: int = 1,
-    nw: int = 5,
+    nw: int = 4,
     no_feats: str = "adj",
     noise: bool = False,
     processor: str = "pgn",
     aggregator: str = "max",
     save_path: Path = Path("src/runs"),
     dtype: str = "float32",
-    num_test_trials: int = 5,
+    num_test_trials: int = 4,
     seed: int | None = None,
 ):
     torch.set_default_dtype(choose_default_dtype(dtype))
 
-    assert aggregator in ["max", "sum", "mean"]
+    assert aggregator in ["max", "sum", "mean", "cat"]
     assert processor in ["mpnn", "pgn"]
 
     if seed is None:

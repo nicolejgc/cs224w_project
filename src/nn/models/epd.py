@@ -271,13 +271,13 @@ class EncodeProcessDecode_Impl(Module):
                 x = encoders.accum_node_fts(encoder, dp, data, x)
                 edge_attr = encoders.accum_edge_fts(encoder, dp, data, edge_attr, adj)
 
+        x = self.ln_x(x)
+        h = self.ln_h(h)
+
         if torch.isnan(x).any():
             raise ValueError("NaN detected in 'x' after encoding, bruh")
         if torch.isnan(edge_attr).any():
             raise ValueError("NaN detected in 'edge_attr' after encoding, bruh")
-
-        x = self.ln_x(x)
-        h = self.ln_h(h)
 
         # ~~~ process ~~~
         z = torch.cat([x, h], dim=-1)

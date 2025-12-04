@@ -1,4 +1,4 @@
-algorithm: ford_fulkerson_mincut
+algorithm: push_relabel_mincut
 runs:
   num_runs: 1
   hp_space: ff_mc_small
