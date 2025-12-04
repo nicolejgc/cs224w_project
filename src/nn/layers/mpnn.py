@@ -32,7 +32,14 @@ class MpnnConv(Module):
         )
 
         self.o1 = Linear(in_features=in_channels, out_features=out_channels, bias=bias)
-        self.o2 = Linear(in_features=mid_channels, out_features=out_channels, bias=bias)
+        if aggregator == "cat":
+            self.o2 = Linear(
+                in_features=mid_channels * 2, out_features=out_channels, bias=bias
+            )
+        else:
+            self.o2 = Linear(
+                in_features=mid_channels, out_features=out_channels, bias=bias
+            )
 
         self.net = net
         self.mid_activation = mid_activation  # type: ignore
@@ -44,6 +51,8 @@ class MpnnConv(Module):
             reduce = torch.sum
         elif aggregator == "mean":
             reduce = torch.mean
+        elif aggregator == "cat":
+            reduce = None  # We handle this manually in forward
         else:
             raise NotImplementedError("Invalid type of aggregator function.")
 
@@ -83,7 +92,18 @@ class MpnnConv(Module):
         if self.mid_activation is not None:
             msg = self.mid_activation(msg)
 
-        if self.aggregator == "mean":
+        if self.aggregator == "cat":
+            sum_msg = (msg * adj.unsqueeze(-1)).sum(1)
+
+            eye = torch.eye(num_nodes, device=adj.device).unsqueeze(0)
+            adj_max = torch.max(adj, eye)
+
+            max_arg = torch.where(
+                adj_max.unsqueeze(-1).bool(), msg, torch.tensor(-Inf).to(msg.device)
+            )
+            max_msg = torch.amax(max_arg, dim=1)
+            msg = torch.cat([sum_msg, max_msg], dim=-1)
+        elif self.aggregator == "mean":
             msg = (msg * adj.unsqueeze(-1)).sum(1)
             msg = msg / torch.sum(adj, dim=-1, keepdim=True)
         elif self.aggregator == "max":
