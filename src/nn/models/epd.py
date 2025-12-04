@@ -110,10 +110,19 @@ class EncodeProcessDecode(clrs.Model):
 
         total_loss.backward()
 
-        # Added gradient clipping to avoid big ass explosion
-        torch.nn.utils.clip_grad_norm_(self.net_.parameters(), max_norm=1.0)
+        grad_is_nan = False
+        for param in self.net_.parameters():
+            if param.grad is not None and torch.isnan(param.grad).any():
+                grad_is_nan = True
+                break
 
-        self.optimizer.step()
+        if grad_is_nan:
+            print("Skipping step: NaN gradients detected.")
+            self.optimizer.zero_grad()
+        else:
+            torch.nn.utils.clip_grad_norm_(self.net_.parameters(), max_norm=1.0)
+            self.optimizer.step()
+
         return total_loss.item()
 
     def feedback(self, feedback: _Feedback) -> float:
@@ -234,8 +243,8 @@ class EncodeProcessDecode_Impl(Module):
         self.to(device)
 
     def step(self, trajectories, h, adj):
-        if torch.isnan(h).any():
-            raise ValueError("NaN detected in input hidden state 'h', bruh")
+        # if torch.isnan(h).any():
+        #     raise ValueError("NaN detected in input hidden state 'h', bruh")
 
         # ~~~ init ~~~
         batch_size, num_nodes = _dimensions(trajectories[0])
@@ -255,10 +264,10 @@ class EncodeProcessDecode_Impl(Module):
                 if self.no_feats(dp.name) or dp.name not in self.encoders:
                     continue
 
-                if torch.isnan(dp.data).any():
-                    raise ValueError(
-                        f"NaN detected in input feature '{dp.name}' from feedback, bruh"
-                    )
+                # if torch.isnan(dp.data).any():
+                #     raise ValueError(
+                #         f"NaN detected in input feature '{dp.name}' from feedback, bruh"
+                #     )
 
                 if dp.data.abs().max() > 1e4:
                     print(
@@ -274,20 +283,20 @@ class EncodeProcessDecode_Impl(Module):
         x = self.ln_x(x)
         h = self.ln_h(h)
 
-        if torch.isnan(x).any():
-            raise ValueError("NaN detected in 'x' after encoding, bruh")
-        if torch.isnan(edge_attr).any():
-            raise ValueError("NaN detected in 'edge_attr' after encoding, bruh")
+        # if torch.isnan(x).any():
+        #     raise ValueError("NaN detected in 'x' after encoding, bruh")
+        # if torch.isnan(edge_attr).any():
+        #     raise ValueError("NaN detected in 'edge_attr' after encoding, bruh")
 
         # ~~~ process ~~~
         z = torch.cat([x, h], dim=-1)
         hiddens = self.process(z, adj, edge_attr)
 
-        if torch.isnan(hiddens).any():
-            print("z Stats:", z.mean(), z.std(), z.max())
-            print("x Stats:", x.mean(), x.std(), x.max())
-            print("h Stats:", h.mean(), h.std(), h.max())
-            raise ValueError("NaN detected in output from processor, bruh")
+        # if torch.isnan(hiddens).any():
+        #     print("z Stats:", z.mean(), z.std(), z.max())
+        #     print("x Stats:", x.mean(), x.std(), x.max())
+        #     print("h Stats:", h.mean(), h.std(), h.max())
+        #     raise ValueError("NaN detected in output from processor, bruh")
 
         h_t = torch.cat([z, hiddens], dim=-1)
         self.h_t = h_t

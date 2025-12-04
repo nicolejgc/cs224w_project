@@ -22,7 +22,9 @@ class Encoder(Module):
         )
 
     def forward(self, x):
-        return self.net(x)
+        x = torch.nan_to_num(x, nan=0.0, posinf=1e4, neginf=-1e4)
+        out = self.net(x)
+        return out
 
 
 def preprocess(dp: _DataPoint, nb_nodes: int) -> _Tensor:

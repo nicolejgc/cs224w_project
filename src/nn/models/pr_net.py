@@ -154,7 +154,9 @@ class PR_Net(clrs.Model):
                 preds, truth, feedback, self.alpha, self.device
             )
 
-        return losses, total_loss
+        return losses, (
+            total_loss.item() if isinstance(total_loss, torch.Tensor) else 0.0
+        )
 
 
 class PRNet_Impl(torch.nn.Module):
