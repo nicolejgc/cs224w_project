@@ -78,10 +78,7 @@ def accum_graph_fts(
 
 
 def _encode_inputs(encoder, dp: _DataPoint, data: _Tensor) -> _Tensor:
-    # CATEGORICAL is always multi-dimensional (one-hot encoded)
-    # GRAPH-level MASK_ONE (like phase) is also multi-dimensional over classes
-    # NODE-level MASK_ONE (like s, t) needs unsqueeze because it's per-node scalar
-    if dp.type_ == _Type.CATEGORICAL or (dp.type_ == _Type.MASK_ONE and dp.location == _Location.GRAPH):
+    if dp.type_ == _Type.CATEGORICAL:
         encoding = encoder(data)
     else:
         encoding = encoder(data.unsqueeze(-1))

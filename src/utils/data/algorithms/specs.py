@@ -65,14 +65,10 @@ SPECS = types.MappingProxyType(
             "f_h": (_Stage.HINT, _Location.EDGE, _Type.SCALAR),  # intermed flow assn
             "c_h": (_Stage.HINT, _Location.NODE, _Type.CATEGORICAL),  # cut hints
             "active_nodes": (_Stage.HINT, _Location.NODE, _Type.MASK),
-            "phase": (clrs.Stage.HINT, clrs.Location.GRAPH, clrs.Type.MASK_ONE),
+            "__phase": (_Stage.HINT, _Location.GRAPH, _Type.MASK),
             # outputs
             "f": (_Stage.OUTPUT, _Location.EDGE, _Type.SCALAR),  # final flow assn
-            "c": (
-                _Stage.OUTPUT,
-                _Location.NODE,
-                _Type.CATEGORICAL,
-            ),  # min-cut partition
+            "c": (_Stage.OUTPUT, _Location.NODE, _Type.CATEGORICAL),
         },
     }
 )

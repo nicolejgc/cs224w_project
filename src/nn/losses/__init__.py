@@ -168,7 +168,6 @@ def hint_loss(preds, truth, feedback, alpha, device):
                 loss = (y_pred - y) ** 2
 
                 hint_mask.append(h_mask.all(-1))
-                loss = (loss * h_mask).sum(-1) / (h_mask.sum(-1) + EPS)
 
                 # Sum over the single node dimension (N) and normalize by number of nodes
                 loss = (loss * h_mask).sum(-1) / (h_mask.sum(-1) + EPS)

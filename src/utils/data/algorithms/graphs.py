@@ -206,16 +206,6 @@ class PushRelabelPhase(IntEnum):
     BFS = 1
 
 
-NUM_PHASES = 2  # Number of phases for one-hot encoding
-
-
-def _phase_one_hot(phase: PushRelabelPhase) -> np.ndarray:
-    """Convert phase enum to one-hot encoding for MASK_ONE type."""
-    one_hot = np.zeros(NUM_PHASES)
-    one_hot[phase] = 1.0
-    return one_hot
-
-
 def run_global_relabel(probes, A, f, h, e, s, t, n, C=None):
     """
     Runs a backwards BFS on residual graph to relabel.
@@ -459,7 +449,7 @@ def push_relabel_mincut(A: np.ndarray, s: int, t: int) -> _Out:
                         "f_h": np.copy(f),
                         "c_h": np.copy(C),
                         "active_nodes": np.zeros(n),
-                        "phase": _phase_one_hot(PushRelabelPhase.PUSH_RELABEL),
+                        "__phase": np.array([PushRelabelPhase.PUSH_RELABEL]),
                     },
                 )
             break
@@ -473,7 +463,7 @@ def push_relabel_mincut(A: np.ndarray, s: int, t: int) -> _Out:
                 "f_h": np.copy(f),
                 "c_h": np.copy(C),
                 "active_nodes": active_mask.astype(float),
-                "phase": _phase_one_hot(PushRelabelPhase.PUSH_RELABEL),
+                "__phase": np.array([PushRelabelPhase.PUSH_RELABEL]),
             },
         )
         steps_since_relabel += 1
