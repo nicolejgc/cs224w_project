@@ -51,7 +51,7 @@ class Run:
     name: str
     seed: int
     batch_size: int
-    model_fn: Callable[[Any], Model]
+    model_fn: Callable[..., Model]
     config: Dict[str, Any]
     early_stop: bool
     early_stop_patience: int
@@ -63,7 +63,7 @@ class Run:
 def init_runs(
     num_runs: int,
     hp_space: Dict,
-    model_fn: Callable[[Any], Model],
+    model_fn: Callable[..., Model],
     optim_fn: Callable[[Any], Optimizer],
     seed: int,
     batch_size: int,
@@ -129,7 +129,11 @@ def _init_ray(num_cpus: int, num_gpus: int, nw: int):
     """Initialize Ray for parallel execution."""
     import ray
 
-    print(num_cpus, num_gpus, nw)
+    if ray.is_initialized():
+        ray.shutdown()
+
+    print("initializing ray:")
+    print(f"{num_cpus=}, {num_gpus=}, {nw=}")
 
     ray.init(num_cpus=num_cpus, num_gpus=num_gpus, include_dashboard=False)
 
@@ -290,7 +294,8 @@ def _run_seq(exp, tr_set, vl_set, save_path):
     LOW_ = -HIGH_
     best_score = LOW_ if exp.higher_is_better else HIGH_
 
-    is_better = lambda a, b: a > b if exp.higher_is_better else a < b
+    def is_better(a, b):
+        return a > b if exp.higher_is_better else a < b
 
     for run in exp.runs:
         score = run_valid(
@@ -329,7 +334,9 @@ def _run_par(exp, tr_set, vl_set, save_path):
     LOW_ = -HIGH_
 
     best_score = LOW_ if exp.higher_is_better else HIGH_
-    is_better = lambda a, b: a > b if exp.higher_is_better else a < b
+
+    def is_better(a, b):
+        return a > b if exp.higher_is_better else a < b
 
     for id_, run_ in remotes.items():
         score = ray.get(id_)
@@ -431,7 +438,7 @@ def run_test(
 
                 if is_better(vl_stats["score"], best):
                     best = vl_stats["score"]
-                    print("do I ever reach here")
+                    print("Saving improved model weights")
                     print(save_path)
                     dump(model.net_.state_dict(), save_path / f"model_{trial}.pth")
 
@@ -487,6 +494,10 @@ def run_exp(experiment: Experiment, tr_set, vl_set, ts_set, save_path: Path):
     else:
         import ray
 
+        tr_set_ref = ray.put(tr_set)
+        vl_set_ref = ray.put(vl_set)
+        ts_set_ref = ray.put(ts_set)
+
         @ray.remote(num_cpus=1, num_gpus=1 / experiment.nw)
         def test(*args, **kwargs):
             return run_test(*args, **kwargs)
@@ -496,9 +507,9 @@ def run_exp(experiment: Experiment, tr_set, vl_set, ts_set, save_path: Path):
             id_ = test.remote(
                 run=best_run,
                 evaluate_fn=experiment.evaluate_fn,
-                tr_set=tr_set,
-                vl_set=vl_set,
-                ts_set=ts_set,
+                tr_set=tr_set_ref,
+                vl_set=vl_set_ref,
+                ts_set=ts_set_ref,
                 num_trials=1,
                 higher_is_better=experiment.higher_is_better,
                 save_path=save_path / experiment.name / f"trial_{i}",

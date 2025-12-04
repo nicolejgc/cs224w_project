@@ -138,9 +138,6 @@ def valid(
     runs = init_runs(
         seed=seed, model_fn=model_fn, optim_fn=torch.optim.SGD, **configs["runs"]
     )
-    print(num_gpus * nw)
-    print(nw)
-    print(num_gpus)
 
     experiment = Experiment(
         runs=runs,
