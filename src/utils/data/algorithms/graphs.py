@@ -229,24 +229,14 @@ def run_global_relabel(probes, A, f, h, e, s, t, n, C=None):
             "e": np.copy(e),
             "f_h": np.copy(f),
             "active_nodes": current_layer,
-            "phase": _phase_one_hot(PushRelabelPhase.BFS),
+            "__phase": np.array([PushRelabelPhase.BFS]),
         }
 
         # Include c_h if we're doing mincut variant
         if C is not None:
             hint_probe["c_h"] = np.copy(C)
 
-        probing.push(
-            probes,
-            clrs.Stage.HINT,
-            next_probe={
-                "h": np.copy(d),
-                "e": np.copy(e),
-                "f_h": np.copy(f),
-                "active_nodes": current_layer,
-                "__phase": np.array([PushRelabelPhase.BFS]),
-            },
-        )
+        probing.push(probes, clrs.Stage.HINT, next_probe=hint_probe)
 
         new_q = []
         for v in q:
