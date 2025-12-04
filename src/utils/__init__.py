@@ -11,12 +11,6 @@ def set_seed(seed):
     torch.mps.manual_seed(seed)
 
 
-def get_date():
-    from datetime import datetime
-
-    return datetime.utcnow().isoformat()[:-7]
-
-
 def is_not_done_broadcast(lengths, i, tensor):
     import torch
 

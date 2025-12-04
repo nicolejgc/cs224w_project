@@ -2,7 +2,7 @@
 
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import partial
 from pathlib import Path
 from statistics import mean, stdev
@@ -26,11 +26,12 @@ def set_seed(seed):
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    torch.mps.manual_seed(seed)
 
 
 def get_date():
     """Get current UTC date in ISO format."""
-    return datetime.utcnow().isoformat()[:-7]
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def random_search(space, num_samples):
@@ -391,6 +392,7 @@ def run_test(
     save_path: Path,
     num_trials: int = 5,
     higher_is_better: bool = True,
+    seed: int | None = None,
 ):
     """Run testing for a single run configuration."""
     from rich.pretty import pprint as log
@@ -400,6 +402,9 @@ def run_test(
 
     LOW_ = 0.0
     HIGH_ = 1e4
+
+    current_seed = seed if seed is not None else run.seed
+    set_seed(current_seed)
 
     if not save_path.exists():
         os.makedirs(save_path, exist_ok=True)
@@ -474,6 +479,7 @@ def run_exp(experiment: Experiment, tr_set, vl_set, ts_set, save_path: Path):
     best_run = validate(
         experiment=experiment, tr_set=tr_set, vl_set=vl_set, save_path=save_path
     )
+    base_seed = best_run.seed
 
     if experiment.sequential:
         res = run_test(
@@ -485,6 +491,7 @@ def run_exp(experiment: Experiment, tr_set, vl_set, ts_set, save_path: Path):
             num_trials=experiment.num_test_trials,
             higher_is_better=experiment.higher_is_better,
             save_path=save_path / experiment.name / "trials",
+            seed=base_seed,
         )
 
         res["mean_score"] = mean(res["ts_scores"])
@@ -504,6 +511,8 @@ def run_exp(experiment: Experiment, tr_set, vl_set, ts_set, save_path: Path):
 
         remotes = []
         for i in range(experiment.num_test_trials):
+            unique_trial_seed = base_seed + i
+
             id_ = test.remote(
                 run=best_run,
                 evaluate_fn=experiment.evaluate_fn,
@@ -513,6 +522,7 @@ def run_exp(experiment: Experiment, tr_set, vl_set, ts_set, save_path: Path):
                 num_trials=1,
                 higher_is_better=experiment.higher_is_better,
                 save_path=save_path / experiment.name / f"trial_{i}",
+                seed=unique_trial_seed,
             )
             remotes.append(id_)
 
