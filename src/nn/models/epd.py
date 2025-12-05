@@ -193,9 +193,9 @@ class EncodeProcessDecode_Impl(Module):
 
         self.no_feats = lambda x: x in no_feats or x.startswith("__")  # noqa
 
-        # Added layer norms for stability...
-        self.ln_x = torch.nn.LayerNorm(num_hidden)
-        self.ln_h = torch.nn.LayerNorm(num_hidden)
+        # # Added layer norms for stability...
+        # self.ln_x = torch.nn.LayerNorm(num_hidden)
+        # self.ln_h = torch.nn.LayerNorm(num_hidden)
 
         for inp in dummy_trajectory.features.inputs:
             if self.no_feats(inp.name):
@@ -280,8 +280,8 @@ class EncodeProcessDecode_Impl(Module):
                 x = encoders.accum_node_fts(encoder, dp, data, x)
                 edge_attr = encoders.accum_edge_fts(encoder, dp, data, edge_attr, adj)
 
-        x = self.ln_x(x)
-        h = self.ln_h(h)
+        # x = self.ln_x(x)
+        # h = self.ln_h(h)
 
         # if torch.isnan(x).any():
         #     raise ValueError("NaN detected in 'x' after encoding, bruh")
