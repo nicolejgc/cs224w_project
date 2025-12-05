@@ -257,5 +257,195 @@ def test(
         print(key, mean(out), "pm", stdev(out) if len(out) > 1 else 0)
 
 
+@app.command()
+def transfer(
+    checkpoint_path: str = typer.Argument(..., help="Path to trained model checkpoint (.pth)"),
+    config_path: str = typer.Argument(..., help="Path to experiment config (e.g., ffmc_vessel.yaml)"),
+    data_path: str = typer.Argument(..., help="Path to vessel feature data"),
+    phase: str = typer.Option("2", help="Transfer phase: 2=replace encoders, 3=freeze+train, 4=finetune"),
+    model: str = typer.Option("mf_net", help="Model type"),
+    vessel_features: str = typer.Option("length,distance,curvedness", help="Comma-separated vessel features"),
+    save_path: str = typer.Option("src/runs/transfer", help="Output directory"),
+    num_cpus: int = typer.Option(1, help="Number of CPUs"),
+    freeze_backbone: bool = typer.Option(True, help="Freeze backbone (Phase 3)"),
+    lr: float = typer.Option(1e-3, help="Learning rate"),
+):
+    """
+    Transfer learning pipeline for DAR.
+    
+    This implements the transfer learning from the DAR paper:
+    - Phase 2: Replace capacity encoder with vessel feature encoders
+    - Phase 3: Freeze backbone, train new encoders on synthetic data
+    - Phase 4: Fine-tune on real brain vessel data
+    
+    Example:
+        # Phase 2+3: Replace encoders and train with frozen backbone
+        uv run src/run.py transfer ./src/runs/ffmc/best_model.pth \\
+            src/config/exp/ffmc_vessel.yaml \\
+            src/data/vessel/default \\
+            --phase 3 --freeze-backbone
+        
+        # Phase 4: Fine-tune everything
+        uv run src/run.py transfer ./src/runs/transfer/model.pth \\
+            src/config/exp/ffmc_vessel.yaml \\
+            src/data/vessel_real/default \\
+            --phase 4 --no-freeze-backbone --lr 1e-4
+    """
+    from utils.transfer import replace_encoder, freeze_model, unfreeze_model
+    
+    save_dir = Path(save_path)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    
+    vessel_feature_list = vessel_features.split(",")
+    config = load(config_path)
+    algorithm = Algorithm(config["algorithm"])
+    
+    print("\n" + "=" * 70)
+    print("DAR TRANSFER LEARNING")
+    print("=" * 70)
+    print(f"Checkpoint: {checkpoint_path}")
+    print(f"Phase: {phase}")
+    print(f"Vessel features: {vessel_feature_list}")
+    print(f"Freeze backbone: {freeze_backbone}")
+    
+    # Load data with vessel features
+    print("\nLoading data...")
+    _, val, test, tr = load_dataset(data_path, algorithm=algorithm)
+    dummy_trajectory = val[0]
+    
+    # Get spec for vessel algorithm
+    from utils.data.algorithms.specs import SPECS
+    spec = SPECS[algorithm.value]
+    
+    # Create model
+    model_class = choose_model(model)
+    hp = HP_SPACE[config["runs"]["hp_space"]]()
+    
+    # Load trained model weights
+    print(f"\nLoading checkpoint: {checkpoint_path}")
+    
+    # Recreate model architecture
+    net = model_class(
+        spec=spec,
+        num_hidden=hp["num_hidden"],
+        optim_fn=partial(torch.optim.Adam, lr=lr),
+        dummy_trajectory=dummy_trajectory,
+        alpha=hp.get("alpha", 0),
+        processor=hp["processor"],
+        aggregator=hp["aggregator"],
+        decode_hints=True,
+        encode_hints=True,
+    )
+    
+    # Load weights (with strict=False to allow missing/extra keys)
+    checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    try:
+        net.net_.load_state_dict(checkpoint, strict=False)
+        print("Loaded checkpoint successfully")
+    except Exception as e:
+        print(f"Warning loading checkpoint: {e}")
+        print("Attempting to load with relaxed matching...")
+    
+    # =========================================================================
+    # PHASE 2: Replace encoders
+    # =========================================================================
+    if phase in ["2", "3", "all"]:
+        print("\n" + "-" * 70)
+        print("PHASE 2: Replacing capacity encoder with vessel features")
+        print("-" * 70)
+        
+        # Check current encoders
+        print("\nEncoders BEFORE replacement:")
+        for name in net.net_.net.encoders.keys():
+            print(f"  - {name}")
+        
+        # Replace A (capacity) with vessel features
+        replace_encoder(
+            net,
+            old_encoder_name="A",
+            new_encoder_names=vessel_feature_list
+        )
+        
+        print("\nEncoders AFTER replacement:")
+        for name in net.net_.net.encoders.keys():
+            print(f"  - {name}")
+    
+    # =========================================================================
+    # PHASE 3: Freeze backbone, train new encoders
+    # =========================================================================
+    if phase in ["3", "all"] and freeze_backbone:
+        print("\n" + "-" * 70)
+        print("PHASE 3: Freezing backbone for encoder training")
+        print("-" * 70)
+        
+        exclude_patterns = [f"encoders.{name}" for name in vessel_feature_list]
+        freeze_model(net, exclude=exclude_patterns)
+        
+        # Recreate optimizer with only trainable params
+        net.optimizer = torch.optim.Adam(
+            filter(lambda p: p.requires_grad, net.parameters()),
+            lr=lr
+        )
+    
+    # =========================================================================
+    # PHASE 4: Fine-tune (unfreeze if needed)
+    # =========================================================================
+    if phase == "4":
+        print("\n" + "-" * 70)
+        print("PHASE 4: Fine-tuning")
+        print("-" * 70)
+        
+        if not freeze_backbone:
+            unfreeze_model(net)
+            print("All parameters unfrozen for fine-tuning")
+        
+        net.optimizer = torch.optim.Adam(
+            filter(lambda p: p.requires_grad, net.parameters()),
+            lr=lr
+        )
+    
+    # =========================================================================
+    # Training
+    # =========================================================================
+    print("\n" + "-" * 70)
+    print("Starting training...")
+    print("-" * 70)
+    
+    # Create experiment
+    runs = init_runs(
+        config["runs"],
+        HP_SPACE[config["runs"]["hp_space"]],
+        val,
+        spec,
+        model_class,
+    )
+    
+    # Override the model in runs with our modified model
+    for run in runs:
+        run.model = net
+    
+    experiment = Experiment(
+        name=config["experiment"]["name"] + "-transfer",
+        runs=runs,
+        score_fn=lambda m: m["vl_score"],
+        maximize_score=config["experiment"]["higher_is_better"],
+        model_class=model_class,
+    )
+    
+    run_exp(
+        experiment,
+        n_trials=config["experiment"]["num_valid_trials"],
+        num_workers=num_cpus,
+        tr=tr,
+        test=test,
+        save_path=save_dir,
+    )
+    
+    # Save final model
+    final_path = save_dir / "transfer_model.pth"
+    torch.save(net.net_.state_dict(), final_path)
+    print(f"\nSaved transfer model to: {final_path}")
+
+
 if __name__ == "__main__":
     app()
