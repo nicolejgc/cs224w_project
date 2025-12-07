@@ -242,6 +242,7 @@ def run_global_relabel(probes, A, f, h, e, s, t, n, C=None):
         for v in q:
             for u in range(n):
                 # We can move from u to v if capacity(u,v) - flow(u,v) > 0
+                # aka do BFS on residual graph.
                 res_cap = A[u, v] - f[u, v]
 
                 if res_cap > 0 and not visited[u]:
