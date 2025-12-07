@@ -201,6 +201,56 @@ def main(
     dump(dict(seed=seed, graph_density=probs, **extras), save_path / "config.json")
 
 
+@app.command()
+def vessel(
+    vesselgraph_path: str = typer.Argument(..., help="Path to cloned VesselGraph repo"),
+    output: str = typer.Option("./src/data/vessel/default", help="Output path"),
+    num_samples: int = typer.Option(500, help="Number of samples (different s/t pairs)"),
+    algorithm: str = typer.Option("ford_fulkerson_mincut_vessel", help="Algorithm spec"),
+):
+    """
+    Convert VesselGraph data to DAR training format.
+    
+    First clone VesselGraph, then run this command:
+    
+        git clone https://github.com/jocpae/VesselGraph.git ../VesselGraph
+        uv run src/build_data.py vessel ../VesselGraph
+    """
+    from utils.data.vesselgraph_loader import create_dar_dataset_from_vesselgraph
+    
+    print(f"\n{'='*70}")
+    print("CONVERTING VESSELGRAPH TO DAR FORMAT")
+    print(f"{'='*70}")
+    print(f"Source: {vesselgraph_path}")
+    print(f"Output: {output}")
+    print(f"Samples: {num_samples}")
+    print(f"{'='*70}\n")
+    
+    create_dar_dataset_from_vesselgraph(
+        vesselgraph_path=vesselgraph_path,
+        output_path=output,
+        num_samples=num_samples,
+        algorithm=algorithm,
+    )
+
+
+@app.command()
+def inspect_vessel(
+    vesselgraph_path: str = typer.Argument(..., help="Path to cloned VesselGraph repo"),
+):
+    """
+    Inspect VesselGraph data and print available features.
+    
+    First clone VesselGraph, then run this command:
+    
+        git clone https://github.com/jocpae/VesselGraph.git ../VesselGraph
+        uv run src/build_data.py inspect-vessel ../VesselGraph
+    """
+    from utils.data.vesselgraph_loader import inspect_vesselgraph
+    
+    inspect_vesselgraph(vesselgraph_path)
+
+
 if __name__ == "__main__":
     app.command()(main)
     app()
