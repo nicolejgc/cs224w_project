@@ -1,7 +1,4 @@
-"""
-Push-Relabel Neural Network (PR_Net)
-"""
-
+from random import random
 from typing import Callable, Dict, List
 
 import clrs
@@ -13,10 +10,11 @@ from nn.models.impl import (
     _dimensions,
     _expand_to,
     _hints_i,
+    _own_hints_i,
     decoders,
 )
 from utils import is_not_done_broadcast
-from utils.data import adj_mat
+from utils.data import adj_mat, edge_attr_mat
 
 Result = Dict[str, clrs.DataPoint]
 
@@ -28,13 +26,19 @@ _DataPoint = clrs.DataPoint
 def _get_phase(hints, device, batch_size):
     """Extracts phase mask: 0.0 for Push-Relabel, 1.0 for Global BFS."""
     for hint in hints:
-        if hint.name == "phase":
+        if hint.name == "phase" or hint.name == "__phase":
             phase = hint.data.to(device).float()
             if phase.dim() == 1:
                 phase = phase.unsqueeze(-1)
             return phase
 
     return torch.zeros((batch_size, 1), device=device)
+
+
+def _match_phase(phase, target):
+    if target.dim() == 1 and phase.dim() == 2 and phase.shape[1] == 1:
+        return phase.squeeze(-1)
+    return _expand_to(phase, target.dim())
 
 
 class PR_Net(clrs.Model):
@@ -52,14 +56,19 @@ class PR_Net(clrs.Model):
         decode_hints: bool = True,
         encode_hints: bool = True,
         max_steps: int | None = None,
+        annealing: bool = True,
+        device: str | None = None,
     ):
         super().__init__(spec=spec)
 
-        self.device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else ("mps" if torch.mps.is_available() else "cpu")
-        )
+        if device is not None:
+            self.device = device
+        else:
+            self.device = (
+                "cuda"
+                if torch.cuda.is_available()
+                else ("mps" if torch.mps.is_available() else "cpu")
+            )
 
         self.net_ = PRNet_Impl(
             spec=spec,
@@ -72,6 +81,7 @@ class PR_Net(clrs.Model):
             max_steps=max_steps,
             no_feats=no_feats,
             add_noise=add_noise,
+            annealing=annealing,
             device=self.device,
         )
 
@@ -126,6 +136,17 @@ class PR_Net(clrs.Model):
         self.net_.eval()
         raw_preds, aux = self.net_(features)
         preds = decoders.postprocess(raw_preds, self.spec)
+
+        # denormalize height
+        if "h" in preds:
+            _, num_nodes = _dimensions(features.inputs)
+            preds["h"].data = preds["h"].data * num_nodes
+
+            if isinstance(aux, list):
+                for step_preds in aux:
+                    if "h" in step_preds:
+                        step_preds["h"] = step_preds["h"] * num_nodes
+
         return preds, (raw_preds, aux)
 
     @torch.no_grad()
@@ -173,6 +194,7 @@ class PRNet_Impl(torch.nn.Module):
         add_noise: bool = False,
         bias: bool = True,
         max_steps: int | None = None,
+        annealing: bool = True,
         device: str = "cpu",
     ):
         super().__init__()
@@ -182,6 +204,10 @@ class PRNet_Impl(torch.nn.Module):
         self.encode_hints = encode_hints
         self.device = device
         self.spec = spec
+        self.no_feats = lambda x: x in no_feats or x.startswith("__")
+
+        self.is_annealing_enabled = annealing
+        self.annealing_state = 0
 
         # Common args for sub-networks
         net_args = dict(
@@ -198,31 +224,40 @@ class PRNet_Impl(torch.nn.Module):
         )
 
         self.push_relabel_net = Net(**net_args)  # ty:ignore[invalid-argument-type]
-        self.push_relabel_net.encoders.pop("c_h")
+        if "c_h" in self.push_relabel_net.encoders:
+            self.push_relabel_net.encoders.pop("c_h")
 
         self.global_relabel_net = Net(**net_args)  # ty:ignore[invalid-argument-type]
-        for key in ["f_h", "c_h"]:
-            self.global_relabel_net.encoders.pop(key)
+        for key in ["c_h"]:
+            if key in self.global_relabel_net.encoders:
+                self.global_relabel_net.encoders.pop(key)
 
         self.to(device)
 
-    def op(self, trajectories, h_pr, adj, phase):
-        """
-        Executes both networks and blends results based on phase mask.
-        """
-        _, h_pr, h_preds_pr = self.push_relabel_net.step(trajectories, h_pr, adj)
-
-        cand_bfs, _, h_preds_bfs = self.global_relabel_net.step(
-            trajectories, h_pr.detach(), adj
+    def op(self, trajectories, h_bfs, adj, phase):
+        cand_bfs, h_bfs, h_preds_bfs = self.global_relabel_net.step(
+            trajectories, h_bfs, adj
         )
+
+        cand_pr, _, h_preds_pr = self.push_relabel_net.step(
+            trajectories, h_bfs, adj
+        )
+
+        # ignore updates to flow from bfs net
+        for key in ["f", "f_h", "e"]:
+            if key in cand_bfs:
+                cand_bfs[key] = torch.full_like(cand_bfs[key], clrs.OutputClass.MASKED)
+            if key in h_preds_bfs:
+                h_preds_bfs[key] = torch.full_like(
+                    h_preds_bfs[key], clrs.OutputClass.MASKED
+                )
 
         if self.decode_hints:
             hint_preds = {}
             for name, pred_pr in h_preds_pr.items():
                 pred_bfs = h_preds_bfs.get(name, torch.zeros_like(pred_pr))
 
-                ndim = pred_pr.dim()
-                bfs_mask_expanded = _expand_to(phase, ndim)
+                bfs_mask_expanded = _match_phase(phase, pred_pr)
                 pr_mask_expanded = 1.0 - bfs_mask_expanded
 
                 hint_preds[name] = (pred_pr * pr_mask_expanded) + (
@@ -231,16 +266,18 @@ class PRNet_Impl(torch.nn.Module):
         else:
             hint_preds = {}
 
-        pr_mask_hidden = 1.0 - _expand_to(phase, h_pr.dim())
-        h_pr = h_pr * pr_mask_hidden
-
         cand = {}
         for name, pred_bfs in cand_bfs.items():
-            # Mask out outputs during PR phase (outputs usually only valid at end or specific steps)
-            mask_cand = _expand_to(phase, pred_bfs.dim())
-            cand[name] = pred_bfs * mask_cand
+            mask_cand = _match_phase(phase, pred_bfs)
 
-        return cand, h_pr, hint_preds
+            # Blend with PR outputs if available
+            if name in cand_pr:
+                pred_pr = cand_pr[name]
+                cand[name] = (pred_pr * (1.0 - mask_cand)) + (pred_bfs * mask_cand)
+            else:
+                cand[name] = pred_bfs * mask_cand
+
+        return cand, h_bfs, hint_preds
 
     def forward(self, features):
         output_preds = {}
@@ -251,26 +288,79 @@ class PRNet_Impl(torch.nn.Module):
         )
         batch_size, num_nodes = _dimensions(features.inputs)
 
-        h_pr = torch.zeros((batch_size, num_nodes, self.num_hidden)).to(self.device)
+        h_bfs = torch.zeros((batch_size, num_nodes, self.num_hidden)).to(self.device)
         adj = adj_mat(features).to(self.device)
+        A = edge_attr_mat(features).to(self.device)
+
+        def next_hint(i):
+            use_teacher_forcing = self.training
+            first_step = i == 0
+
+            if self.is_annealing_enabled:
+                self.annealing_state += 1
+                use_teacher_forcing = use_teacher_forcing and not (
+                    random() > (0.999**self.annealing_state)
+                )
+
+            if use_teacher_forcing or first_step:
+                return _hints_i(features.hints, i)
+            else:
+                return _own_hints_i(last_valid_hints, self.spec, features, i)
+
+        last_valid_hints = {
+            hint.name: hint.data.to(self.device) for hint in next_hint(0)
+        }
 
         for i in range(num_steps):
             trajectories = [features.inputs]
             if self.encode_hints:
-                trajectories.append(_hints_i(features.hints, i))
+                cur_hint = next_hint(i)
+                trajectories.append(cur_hint)
 
             if self.decode_hints:
                 phase = _get_phase(_hints_i(features.hints, i), self.device, batch_size)
             else:
                 phase = torch.zeros((batch_size, 1)).to(self.device)
 
-            cand, h_pr, h_preds = self.op(trajectories, h_pr, adj, phase)
+            cand, h_bfs, h_preds = self.op(trajectories, h_bfs, adj, phase)
 
             if "f" in cand:
-                cand["f"] = cand["f"] * adj
+                cand["f"] = cand["f"] * A
 
             if "f_h" in h_preds:
-                h_preds["f_h"] = h_preds["f_h"] * adj
+                h_preds["f_h"] = h_preds["f_h"] * A
+
+            for name in last_valid_hints.keys():
+                if self.no_feats(name):
+                    continue
+
+                if name in h_preds:
+                    pred = h_preds[name]
+                    _, _, type_ = self.spec[name]
+
+                    if type_ == clrs.Type.MASK:
+                        pred = torch.sigmoid(pred)
+                    elif type_ in [
+                        clrs.Type.MASK_ONE,
+                        clrs.Type.CATEGORICAL,
+                        clrs.Type.POINTER,
+                    ]:
+                        pred = torch.softmax(pred, dim=-1)
+                    elif name in ["h", "e"]:
+                        pred = torch.nn.functional.softplus(pred)
+
+                    h_preds[name] = pred
+
+                    if name == "h":
+                        pred_for_hint = pred * num_nodes
+                    else:
+                        pred_for_hint = pred
+
+                    is_masked = (h_preds[name] == clrs.OutputClass.MASKED) * 1.0
+                    last_valid_hints[name] = (
+                        is_masked * last_valid_hints[name]
+                        + (1.0 - is_masked) * pred_for_hint
+                    )
 
             hint_preds.append(h_preds)
 
@@ -279,9 +369,16 @@ class PRNet_Impl(torch.nn.Module):
                     output_preds[name] = cand[name]
                 else:
                     is_not_done = is_not_done_broadcast(features.lengths, i, cand[name])
+
+                    if name == "f":
+                        phase_mask = _match_phase(phase, cand[name])
+                        update_mask = is_not_done * (1.0 - phase_mask)
+                    else:
+                        update_mask = is_not_done
+
                     output_preds[name] = (
-                        is_not_done * cand[name]
-                        + (1.0 - is_not_done) * output_preds[name]
+                        update_mask * cand[name]
+                        + (1.0 - update_mask) * output_preds[name]
                     )
 
         return output_preds, hint_preds
