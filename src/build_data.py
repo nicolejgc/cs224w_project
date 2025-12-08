@@ -211,9 +211,10 @@ def vessel(
     """
     Convert VesselGraph data to DAR training format.
     
-    First clone VesselGraph, then run this command:
-    
-        git clone https://github.com/jocpae/VesselGraph.git ../VesselGraph
+    First clone VesselGraph:
+        git clone https://github.com/jocpae/VesselGraph.git ./VesselGraph
+        
+    Then run this command:
         uv run src/build_data.py vessel ../VesselGraph
     """
     from utils.data.vesselgraph_loader import create_dar_dataset_from_vesselgraph
@@ -241,10 +242,10 @@ def inspect_vessel(
     """
     Inspect VesselGraph data and print available features.
     
-    First clone VesselGraph, then run this command:
-    
-        git clone https://github.com/jocpae/VesselGraph.git ../VesselGraph
-        uv run src/build_data.py inspect-vessel ../VesselGraph
+    First clone VesselGraph:
+        git clone https://github.com/jocpae/VesselGraph.git
+    Then run this command:
+        uv run src/build_data.py inspect-vessel ./VesselGraph
     """
     from utils.data.vesselgraph_loader import inspect_vesselgraph
     

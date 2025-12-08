@@ -264,7 +264,7 @@ def transfer(
     data_path: str = typer.Argument(..., help="Path to vessel feature data"),
     phase: str = typer.Option("2", help="Transfer phase: 2=replace encoders, 3=freeze+train, 4=finetune"),
     model: str = typer.Option("mf_net", help="Model type"),
-    vessel_features: str = typer.Option("length,distance,curvedness", help="Comma-separated vessel features"),
+    vessel_features: str = typer.Option("length,distance,curveness", help="Comma-separated vessel features"),
     save_path: str = typer.Option("src/runs/transfer", help="Output directory"),
     num_cpus: int = typer.Option(1, help="Number of CPUs"),
     freeze_backbone: bool = typer.Option(True, help="Freeze backbone (Phase 3)"),

@@ -27,7 +27,7 @@ def freeze_model(model: Module, exclude: Optional[List[str]] = None):
     
     Example:
         # Freeze everything except new encoders (all existing encoders like pos, s, t are frozen)
-        freeze_model(net, exclude=["encoders.length", "encoders.distance", "encoders.curvedness"])
+        freeze_model(net, exclude=["encoders.length", "encoders.distance", "encoders.curveness"])
     """
     exclude = exclude or []
     

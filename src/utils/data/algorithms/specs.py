@@ -81,10 +81,10 @@ SPECS = types.MappingProxyType(
             "s": (_Stage.INPUT, _Location.NODE, _Type.MASK_ONE),
             "t": (_Stage.INPUT, _Location.NODE, _Type.MASK_ONE),
             # Edge inputs - VESSEL FEATURES (replace capacity)
-            # Names match VesselGraph OGB dataset: length, distance, curvedness
+            # Names match VesselGraph edge_attr_keys: length, distance, curveness
             "length": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),     # vessel segment length
             "distance": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),   # Euclidean distance between nodes
-            "curvedness": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR), # vessel curvedness
+            "curveness": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),  # vessel curveness (1.0 = straight)
             "adj": (_Stage.INPUT, _Location.EDGE, _Type.MASK),
             # Hints (same as ford_fulkerson_mincut)
             "mask": (_Stage.HINT, _Location.NODE, _Type.MASK),
@@ -102,10 +102,10 @@ SPECS = types.MappingProxyType(
             "s": (_Stage.INPUT, _Location.NODE, _Type.MASK_ONE),
             "t": (_Stage.INPUT, _Location.NODE, _Type.MASK_ONE),
             # Edge inputs - VESSEL FEATURES (replace capacity)
-            # Names match VesselGraph OGB dataset: length, distance, curvedness
+            # Names match VesselGraph edge_attr_keys: length, distance, curveness
             "length": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),     # vessel segment length
             "distance": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),   # Euclidean distance between nodes
-            "curvedness": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR), # vessel curvedness
+            "curveness": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),  # vessel curveness (1.0 = straight)
             "adj": (_Stage.INPUT, _Location.EDGE, _Type.MASK),
             # Hints
             "h": (_Stage.HINT, _Location.NODE, _Type.SCALAR),
