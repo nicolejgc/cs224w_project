@@ -13,9 +13,8 @@ wheels/
 **/__pycache__
 
 # Generated training sets
-./data/
-src/data/
-data/
+/data/
+/src/data/
 
 # Runs
 ./runs

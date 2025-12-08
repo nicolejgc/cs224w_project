@@ -203,19 +203,14 @@ def main(
 
 @app.command()
 def vessel(
-    vesselgraph_path: str = typer.Argument(..., help="Path to cloned VesselGraph repo"),
+    vesselgraph_path: str = typer.Argument(..., help="Path to submodule of VesselGraph repo"),
     output: str = typer.Option("./src/data/vessel/default", help="Output path"),
     num_samples: int = typer.Option(500, help="Number of samples (different s/t pairs)"),
     algorithm: str = typer.Option("ford_fulkerson_mincut_vessel", help="Algorithm spec"),
 ):
     """
     Convert VesselGraph data to DAR training format.
-    
-    First clone VesselGraph:
-        git clone https://github.com/jocpae/VesselGraph.git ./VesselGraph
-        
-    Then run this command:
-        uv run src/build_data.py vessel ../VesselGraph
+        uv run src/build_data.py vessel ./VesselGraph
     """
     from utils.data.vesselgraph_loader import create_dar_dataset_from_vesselgraph
     
@@ -237,14 +232,10 @@ def vessel(
 
 @app.command()
 def inspect_vessel(
-    vesselgraph_path: str = typer.Argument(..., help="Path to cloned VesselGraph repo"),
+    vesselgraph_path: str = typer.Argument(..., help="Path to submodule of VesselGraph repo"),
 ):
     """
     Inspect VesselGraph data and print available features.
-    
-    First clone VesselGraph:
-        git clone https://github.com/jocpae/VesselGraph.git
-    Then run this command:
         uv run src/build_data.py inspect-vessel ./VesselGraph
     """
     from utils.data.vesselgraph_loader import inspect_vesselgraph

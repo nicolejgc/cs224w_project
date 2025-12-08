@@ -2,13 +2,10 @@
 VesselGraph Data Loader for DAR Transfer Learning
 
 SIMPLE SETUP:
-    1. Clone VesselGraph:
-       git clone https://github.com/jocpae/VesselGraph.git ./VesselGraph
-       
-    2. Inspect the data:
+    1. Inspect the data:
        uv run src/build_data.py inspect-vessel ./VesselGraph
        
-    3. Convert to DAR format:
+    2. Convert to DAR format:
        uv run src/build_data.py vessel ../VesselGraph --output ./src/data/vessel
 
 VesselGraph edge features:
@@ -29,10 +26,10 @@ import numpy as np
 
 def load_vesselgraph(path: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """
-    Load VesselGraph data from cloned repository.
+    Load VesselGraph data from VesselGraph repository.
     
     Args:
-        path: Path to cloned VesselGraph repo (e.g., "./VesselGraph")
+        path: Path to submodule of VesselGraph repo (e.g., "./VesselGraph")
         
     Returns:
         edge_index: [2, num_edges] array of edges
@@ -40,7 +37,6 @@ def load_vesselgraph(path: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.nd
         edge_features: Dict with 'length', 'distance', 'curveness', etc.
         
     Usage:
-        git clone https://github.com/jocpae/VesselGraph.git ./VesselGraph
         edge_index, node_feat, edge_feat = load_vesselgraph("./VesselGraph")
     """
     path = Path(path)
@@ -48,8 +44,8 @@ def load_vesselgraph(path: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.nd
     if not path.exists():
         raise FileNotFoundError(
             f"Path not found: {path}\n\n"
-            f"Clone VesselGraph first:\n"
-            f"  git clone https://github.com/jocpae/VesselGraph.git {path}"
+            f"Correct the path to VesselGraph repo first\n"
+            f"Original VesselGraph repo: https://github.com/jocpae/VesselGraph.git"
         )
     
     # Check if this is a VesselGraph repo (has source/ directory)
@@ -57,7 +53,7 @@ def load_vesselgraph(path: str) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.nd
         raise RuntimeError(
             f"Not a VesselGraph repo: {path}\n\n"
             f"Expected source/ directory.\n"
-            f"Clone: git clone https://github.com/jocpae/VesselGraph.git"
+            f"Original VesselGraph repo: https://github.com/jocpae/VesselGraph.git"
         )
     
     return _load_from_vesselgraph_repo(path)
@@ -324,7 +320,7 @@ def create_dar_dataset_from_vesselgraph(
     Create DAR training dataset from VesselGraph.
     
     Args:
-        vesselgraph_path: Path to cloned VesselGraph repo
+        vesselgraph_path: Path to submodule of VesselGraph repo
         output_path: Where to save the DAR dataset
         num_samples: Number of source/target pairs to generate
         algorithm: Algorithm spec name
@@ -387,7 +383,7 @@ def inspect_vesselgraph(path: str):
     Inspect VesselGraph data and print available features.
     
     Args:
-        path: Path to cloned VesselGraph repo
+        path: Path to submodule of VesselGraph repo
     """
     print(f"\n{'='*70}")
     print(f"INSPECTING VESSELGRAPH")
