@@ -146,7 +146,7 @@ def hint_loss(preds, truth, feedback, alpha, device):
     hint_mask = []
     adj = adj_mat(feedback.features).to(device)
 
-    for i in range(truth.data.shape[0] - 1):
+    for i in range(min(len(preds), truth.data.shape[0] - 1)):
         y = truth.data[i + 1].to(device)
 
         y_pred = preds[i][truth.name]
@@ -213,8 +213,9 @@ def hint_loss(preds, truth, feedback, alpha, device):
 
     losses = torch.stack(losses)
     hint_mask = torch.stack(hint_mask) * 1.0
+    num_steps = losses.shape[0]
     is_not_done = _is_not_done_broadcast(
-        feedback.features.lengths, np.arange(truth.data.shape[0] - 1)[:, None], losses
+        feedback.features.lengths, np.arange(num_steps)[:, None], losses
     )
     mask = is_not_done * _expand_to(hint_mask, len(is_not_done.shape))
 

@@ -240,7 +240,7 @@ class PRNet_Impl(torch.nn.Module):
         )
 
         cand_pr, _, h_preds_pr = self.push_relabel_net.step(
-            trajectories, h_bfs.detach(), adj
+            trajectories, h_bfs, adj
         )
 
         # ignore updates to flow from bfs net
