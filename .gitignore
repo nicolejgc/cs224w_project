@@ -15,6 +15,7 @@ wheels/
 # Generated training sets
 ./data/
 src/data/
+data/
 
 # Runs
 ./runs
