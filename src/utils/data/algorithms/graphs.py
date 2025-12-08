@@ -291,13 +291,13 @@ def _push_relabel_impl(A: np.ndarray, s: int, t: int, C: np.ndarray | None) -> _
         },
     )
 
-    global_relabel_freq = n**2  # Run BFS every N^2 steps
+    global_relabel_freq = n
     steps_since_relabel = 0
     step = 0
 
     while True:
         # perform global-relabel using BFS
-        if steps_since_relabel >= global_relabel_freq:
+        if steps_since_relabel >= global_relabel_freq or step == 0:
             # global relabel also adds probes for BFS steps
             h = run_global_relabel(probes, A, f, h, e, s, t, n)
             steps_since_relabel = 0
@@ -411,13 +411,13 @@ def push_relabel_mincut(A: np.ndarray, s: int, t: int) -> _Out:
         },
     )
 
-    global_relabel_freq = n**2
+    global_relabel_freq = n
     steps_since_relabel = 0
     step = 0
 
     while True:
         # perform global-relabel using BFS
-        if steps_since_relabel >= global_relabel_freq:
+        if steps_since_relabel >= global_relabel_freq or step == 0:
             h = run_global_relabel(probes, A, f, h, e, s, t, n, C)
             steps_since_relabel = 0
             step += 1

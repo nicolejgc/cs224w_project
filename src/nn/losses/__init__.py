@@ -165,7 +165,13 @@ def hint_loss(preds, truth, feedback, alpha, device):
                 else:
                     hint_mask.append(h_mask.all(-1))
             else:
-                loss = (y_pred - y) ** 2
+                if truth.name == "e":
+                    loss = (torch.log1p(y_pred.abs()) - torch.log1p(y.abs())) ** 2
+                elif truth.name == "h":
+                    num_nodes = y.shape[-1]
+                    loss = (y_pred - (y / num_nodes)) ** 2
+                else:
+                    loss = (y_pred - y) ** 2
 
                 hint_mask.append(h_mask.all(-1))
 
@@ -177,7 +183,10 @@ def hint_loss(preds, truth, feedback, alpha, device):
             loss = mask_loss(y_pred, y)
             mask = (truth.data[i + 1] != _OutputClass.MASKED).float().to(device)
             mask *= h_mask
-            loss = torch.sum(loss * mask, dim=-1) / (torch.sum(mask, dim=-1) + EPS)
+            if truth.location != _Location.GRAPH:
+                loss = torch.sum(loss * mask, dim=-1) / (torch.sum(mask, dim=-1) + EPS)
+            else:
+                loss = loss * mask
         elif truth.type_ == _Type.MASK_ONE:
             loss = -torch.sum(
                 y * torch.nn.functional.log_softmax(y_pred, dim=-1) * h_mask, dim=-1
@@ -232,8 +241,6 @@ def output_loss(preds, truth, feedback, alpha, device):
         loss = ((y_pred - (y * adj)) ** 2).sum() / (
             adj_mat(feedback.features).sum() + EPS
         )
-        # if truth.name == "f":
-        #    loss = alpha * loss + (1-alpha) * max_flow(y_pred, feedback.features.inputs, device=device)
 
         return loss
 
@@ -258,6 +265,14 @@ def _3d_diag(A):
 
 def _is_not_done_broadcast(lengths, i, tensor):
     import torch
+
+    if not isinstance(i, torch.Tensor):
+        i = torch.tensor(
+            i, device=lengths.device if isinstance(lengths, torch.Tensor) else "cpu"
+        )
+
+    if not isinstance(lengths, torch.Tensor):
+        lengths = torch.tensor(lengths, device=i.device)
 
     is_not_done = torch.as_tensor((lengths > i + 1) * 1.0, dtype=torch.float32).to(
         tensor.device
