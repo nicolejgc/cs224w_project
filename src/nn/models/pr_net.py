@@ -35,6 +35,12 @@ def _get_phase(hints, device, batch_size):
     return torch.zeros((batch_size, 1), device=device)
 
 
+def _match_phase(phase, target):
+    if target.dim() == 1 and phase.dim() == 2 and phase.shape[1] == 1:
+        return phase.squeeze(-1)
+    return _expand_to(phase, target.dim())
+
+
 class PR_Net(clrs.Model):
     def __init__(
         self,
@@ -251,15 +257,7 @@ class PRNet_Impl(torch.nn.Module):
             for name, pred_pr in h_preds_pr.items():
                 pred_bfs = h_preds_bfs.get(name, torch.zeros_like(pred_pr))
 
-                ndim = pred_pr.dim()
-
-                # Fix broadcasting issue for scalar/mask predictions vs phase
-                if ndim == 1 and phase.dim() == 2 and phase.shape[1] == 1:
-                    phase_used = phase.squeeze(-1)
-                else:
-                    phase_used = phase
-
-                bfs_mask_expanded = _expand_to(phase_used, ndim)
+                bfs_mask_expanded = _match_phase(phase, pred_pr)
                 pr_mask_expanded = 1.0 - bfs_mask_expanded
 
                 hint_preds[name] = (pred_pr * pr_mask_expanded) + (
@@ -270,13 +268,7 @@ class PRNet_Impl(torch.nn.Module):
 
         cand = {}
         for name, pred_bfs in cand_bfs.items():
-            ndim = pred_bfs.dim()
-            if ndim == 1 and phase.dim() == 2 and phase.shape[1] == 1:
-                phase_used = phase.squeeze(-1)
-            else:
-                phase_used = phase
-
-            mask_cand = _expand_to(phase_used, ndim)
+            mask_cand = _match_phase(phase, pred_bfs)
 
             # Blend with PR outputs if available
             if name in cand_pr:
@@ -379,13 +371,7 @@ class PRNet_Impl(torch.nn.Module):
                     is_not_done = is_not_done_broadcast(features.lengths, i, cand[name])
 
                     if name == "f":
-                        ndim = cand[name].dim()
-                        if ndim == 1 and phase.dim() == 2 and phase.shape[1] == 1:
-                            phase_used = phase.squeeze(-1)
-                        else:
-                            phase_used = phase
-
-                        phase_mask = _expand_to(phase_used, ndim)
+                        phase_mask = _match_phase(phase, cand[name])
                         update_mask = is_not_done * (1.0 - phase_mask)
                     else:
                         update_mask = is_not_done
