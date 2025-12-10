@@ -21,7 +21,7 @@ def freeze_model(model: Module, exclude: Optional[List[str]] = None):
     Freeze all parameters in a model except those in exclude list.
     
     Args:
-        model: The PyTorch model to freeze
+        model: The PyTorch model to freeze (or clrs.Model wrapper)
         exclude: List of parameter name patterns to keep trainable
                  e.g., ["encoders.length", "encoders.curvature"]
     
@@ -31,7 +31,10 @@ def freeze_model(model: Module, exclude: Optional[List[str]] = None):
     """
     exclude = exclude or []
     
-    for name, param in model.named_parameters():
+    # Handle clrs.Model wrapper (has net_ attribute)
+    pytorch_model = model.net_ if hasattr(model, 'net_') else model
+    
+    for name, param in pytorch_model.named_parameters():
         should_freeze = True
         for pattern in exclude:
             if pattern in name:
@@ -41,14 +44,15 @@ def freeze_model(model: Module, exclude: Optional[List[str]] = None):
         param.requires_grad = not should_freeze
         
     # Print frozen/trainable status
-    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    total = sum(p.numel() for p in model.parameters())
+    trainable = sum(p.numel() for p in pytorch_model.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in pytorch_model.parameters())
     print(f"Trainable parameters: {trainable:,} / {total:,} ({100*trainable/total:.1f}%)")
 
 
 def unfreeze_model(model: Module):
     """Unfreeze all parameters in a model."""
-    for param in model.parameters():
+    pytorch_model = model.net_ if hasattr(model, 'net_') else model
+    for param in pytorch_model.parameters():
         param.requires_grad = True
 
 
@@ -86,31 +90,48 @@ def replace_encoder(
             num_hidden=64
         )
     """
-    # Access the encoders ModuleDict
+    # Get all encoder dicts from the model (may be multiple for MFNet/PRNet)
+    encoder_dicts = []
+    
     if hasattr(model, 'net_'):
-        # MF_Net wrapper
-        encoders = model.net_.net.encoders
-        num_hidden = model.net_.net.num_hidden
-    elif hasattr(model, 'net'):
-        # MFNet_Impl wrapper
-        encoders = model.net.encoders
-        num_hidden = model.net.num_hidden
+        impl = model.net_
+        if hasattr(impl, 'bfs_net') and hasattr(impl, 'flow_net'):
+            # MFNet structure: has both bfs_net and flow_net
+            encoder_dicts.append(('bfs_net', impl.bfs_net.encoders))
+            encoder_dicts.append(('flow_net', impl.flow_net.encoders))
+            num_hidden = impl.bfs_net.num_hidden
+        elif hasattr(impl, 'push_relabel_net') and hasattr(impl, 'global_relabel_net'):
+            # PRNet structure: has push_relabel_net and global_relabel_net
+            encoder_dicts.append(('push_relabel_net', impl.push_relabel_net.encoders))
+            encoder_dicts.append(('global_relabel_net', impl.global_relabel_net.encoders))
+            num_hidden = impl.push_relabel_net.num_hidden
+        elif hasattr(impl, 'net'):
+            # Nested net structure
+            encoder_dicts.append(('net', impl.net.encoders))
+            num_hidden = impl.net.num_hidden
+        elif hasattr(impl, 'encoders'):
+            # Direct structure (EPD)
+            encoder_dicts.append(('impl', impl.encoders))
+            num_hidden = impl.num_hidden
     elif hasattr(model, 'encoders'):
-        # Direct EncodeProcessDecode_Impl
-        encoders = model.encoders
+        encoder_dicts.append(('model', model.encoders))
         num_hidden = model.num_hidden
-    else:
+    
+    if not encoder_dicts:
         raise ValueError("Could not find encoders in model")
     
-    # Remove old encoder if it exists
-    if old_encoder_name in encoders:
-        print(f"Removing encoder: {old_encoder_name}")
-        del encoders[old_encoder_name]
-    
-    # Add new encoders
-    for name in new_encoder_names:
-        print(f"Adding new encoder: {name} (in_features={in_features}, out_features={num_hidden})")
-        encoders[name] = Linear(in_features, num_hidden, bias=False)
+    # Modify all encoder dicts
+    for dict_name, encoders in encoder_dicts:
+        # Remove old encoder if it exists
+        if old_encoder_name in encoders:
+            print(f"Removing encoder '{old_encoder_name}' from {dict_name}")
+            del encoders[old_encoder_name]
+        
+        # Add new encoders
+        for name in new_encoder_names:
+            if name not in encoders:
+                print(f"Adding encoder '{name}' to {dict_name} (in={in_features}, out={num_hidden})")
+                encoders[name] = Linear(in_features, num_hidden, bias=False)
     
     return model
 

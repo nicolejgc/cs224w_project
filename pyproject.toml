@@ -11,6 +11,9 @@ dependencies = [
     "numpy>=2.3.4",
     "ray>=2.51.1",
     "torch>=2.9.0",
+    "torch-geometric>=2.7.0",
+    "torch-scatter>=2.1.2",
+    "torch-sparse>=0.6.18",
     "typer>=0.20.0",
 ]
 

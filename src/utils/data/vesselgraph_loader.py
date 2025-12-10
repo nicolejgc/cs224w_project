@@ -163,19 +163,32 @@ def vesselgraph_to_dar_format(
     edge_features: Dict[str, np.ndarray],
     source_node: int,
     target_node: int,
+    run_algorithm: bool = True,
+    pad_to: int = 64,  # Pad to fixed size for batching
 ) -> Dict:
-    """Convert VesselGraph data to DAR training format."""
+    """
+    Convert VesselGraph data to DAR training format.
+    
+    If run_algorithm=True, runs Ford-Fulkerson to generate proper hints and outputs.
+    Otherwise, returns format with empty hints/outputs (for inference).
+    
+    All matrices are padded to pad_to x pad_to for consistent batching.
+    """
     num_nodes = node_features.shape[0]
     
-    # Create adjacency matrix
-    adj = np.zeros((num_nodes, num_nodes))
+    # Ensure we don't exceed pad_to
+    if num_nodes > pad_to:
+        raise ValueError(f"Subgraph has {num_nodes} nodes but pad_to={pad_to}")
+    
+    # Create adjacency matrix (padded)
+    adj = np.zeros((pad_to, pad_to))
     for src, dst in edge_index.T:
         adj[src, dst] = 1
         adj[dst, src] = 1
     
-    # Convert edge list to matrix
+    # Convert edge list to matrix (padded)
     def to_matrix(edge_values):
-        mat = np.zeros((num_nodes, num_nodes))
+        mat = np.zeros((pad_to, pad_to))
         for i, (src, dst) in enumerate(edge_index.T):
             mat[src, dst] = edge_values[i]
             mat[dst, src] = edge_values[i]
@@ -203,28 +216,41 @@ def vesselgraph_to_dar_format(
     else:
         curveness_mat = np.zeros_like(adj)
     
-    # Source/target one-hot
-    s = np.zeros(num_nodes)
-    s[source_node] = 1
-    t = np.zeros(num_nodes)
-    t[target_node] = 1
-    
-    pos = np.arange(num_nodes) / num_nodes
-    
-    return {
-        "input": {
-            "node": {"pos": pos, "s": s, "t": t},
-            "edge": {
-                "length": length_mat,
-                "distance": distance_mat,
-                "curveness": curveness_mat,
-                "adj": adj,
+    if run_algorithm:
+        # Run Ford-Fulkerson to get hints and outputs
+        # The algorithm will run on the padded matrices (isolated nodes don't affect min-cut)
+        from utils.data.algorithms.graphs import ford_fulkerson_mincut_vessel
+        
+        f, probes = ford_fulkerson_mincut_vessel(
+            length_mat, distance_mat, curveness_mat, adj,
+            source_node, target_node
+        )
+        
+        # probes is already in DAR format (ProbesDict)
+        return probes
+    else:
+        # Return format without running algorithm (for inference)
+        s = np.zeros(num_nodes)
+        s[source_node] = 1
+        t = np.zeros(num_nodes)
+        t[target_node] = 1
+        pos = np.arange(num_nodes) / num_nodes
+        
+        return {
+            "input": {
+                "node": {"pos": pos, "s": s, "t": t},
+                "edge": {
+                    "length": length_mat,
+                    "distance": distance_mat,
+                    "curveness": curveness_mat,
+                    "adj": adj,
+                },
+                "graph": {}
             },
-            "graph": {}
-        },
-        "hint": {"node": {}, "edge": {}, "graph": {}},
-        "output": {"node": {}, "edge": {}}
-    }
+            "hint": {"node": {}, "edge": {}, "graph": {}},
+            "output": {"node": {}, "edge": {}}
+        }
+
 
 
 def sample_subgraph(
@@ -345,7 +371,7 @@ def create_dar_dataset_from_vesselgraph(
             edge_index, node_features, edge_features, int(s), int(t), max_nodes=max_nodes
         )
         
-        sample = vesselgraph_to_dar_format(sub_edge_index, sub_node_feat, sub_edge_feat, new_s, new_t)
+        sample = vesselgraph_to_dar_format(sub_edge_index, sub_node_feat, sub_edge_feat, new_s, new_t, pad_to=max_nodes)
         samples.append(sample)
         
         if (i + 1) % 100 == 0:
