@@ -260,7 +260,7 @@ def sample_subgraph(
     source: int,
     target: int,
     max_nodes: int = 64,
-    num_hops: int = 3,
+    num_hops: int = 6,  # Increased to capture paths between source/target
 ) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray], int, int]:
     """
     Extract a subgraph around source and target nodes using BFS.
@@ -279,8 +279,32 @@ def sample_subgraph(
         edge_to_idx[(u, v)] = idx
         edge_to_idx[(v, u)] = idx
     
-    # BFS from both source and target
-    visited = set([source, target])
+    # First, find the shortest path between source and target
+    # to ensure they're connected in the subgraph
+    path_nodes = set()
+    parent = {source: None}
+    queue = deque([source])
+    found_path = False
+    
+    while queue and not found_path:
+        node = queue.popleft()
+        if node == target:
+            found_path = True
+            # Trace back path
+            curr = target
+            while curr is not None:
+                path_nodes.add(curr)
+                curr = parent[curr]
+            break
+        for neighbor in adj_list[node]:
+            if neighbor not in parent:
+                parent[neighbor] = node
+                queue.append(neighbor)
+    
+    # Start with path nodes (guarantees connectivity)
+    visited = path_nodes.copy() if path_nodes else set([source, target])
+    
+    # Expand from source and target to fill up to max_nodes
     queue = deque([(source, 0), (target, 0)])
     
     while queue and len(visited) < max_nodes:
@@ -352,6 +376,8 @@ def create_dar_dataset_from_vesselgraph(
         algorithm: Algorithm spec name
         max_nodes: Maximum nodes per subgraph (default 64, like CLRS)
     """
+    from collections import deque
+    
     # Load data
     edge_index, node_features, edge_features = load_vesselgraph(vesselgraph_path)
     num_nodes = node_features.shape[0]
@@ -360,11 +386,49 @@ def create_dar_dataset_from_vesselgraph(
     print(f"Features: {list(edge_features.keys())}")
     print(f"Sampling subgraphs with max {max_nodes} nodes each...")
     
-    # Generate random source/target pairs and sample subgraphs
+    # Build adjacency list for connectivity-aware sampling
+    adj_list = [[] for _ in range(num_nodes)]
+    for u, v in edge_index.T:
+        adj_list[u].append(v)
+        adj_list[v].append(u)
+    
+    def get_connected_target(source: int, min_dist: int = 2, max_dist: int = 5) -> int:
+        """Find a target node that is connected to source within a distance range."""
+        visited = {source: 0}
+        queue = deque([source])
+        candidates = []
+        
+        while queue:
+            node = queue.popleft()
+            dist = visited[node]
+            if dist >= max_dist:
+                continue
+            for neighbor in adj_list[node]:
+                if neighbor not in visited:
+                    visited[neighbor] = dist + 1
+                    queue.append(neighbor)
+                    if min_dist <= dist + 1 <= max_dist:
+                        candidates.append(neighbor)
+        
+        if candidates:
+            return np.random.choice(candidates)
+        # Fallback: return any reachable node
+        reachable = [n for n, d in visited.items() if d >= min_dist and n != source]
+        if reachable:
+            return np.random.choice(reachable)
+        # Last resort: closest node
+        if len(visited) > 1:
+            return np.random.choice([n for n in visited.keys() if n != source])
+        return (source + 1) % num_nodes
+    
+    # Generate samples with CONNECTED source/target pairs
     np.random.seed(42)
     samples = []
+    zero_flow_count = 0
     for i in range(num_samples):
-        s, t = np.random.choice(num_nodes, 2, replace=False)
+        # Pick random source, then find a connected target
+        s = np.random.randint(num_nodes)
+        t = get_connected_target(s, min_dist=2, max_dist=5)
         
         # Sample subgraph around source/target
         sub_edge_index, sub_node_feat, sub_edge_feat, new_s, new_t = sample_subgraph(
@@ -372,10 +436,19 @@ def create_dar_dataset_from_vesselgraph(
         )
         
         sample = vesselgraph_to_dar_format(sub_edge_index, sub_node_feat, sub_edge_feat, new_s, new_t, pad_to=max_nodes)
+        
+        # Check if we got meaningful flow (not all zeros)
+        if 'output' in sample and 'f' in sample['output']:
+            flow_data = sample['output']['f']
+            if hasattr(flow_data, 'data'):
+                flow_data = flow_data.data
+            if np.abs(flow_data).max() < 1e-6:
+                zero_flow_count += 1
+        
         samples.append(sample)
         
         if (i + 1) % 100 == 0:
-            print(f"  Created {i + 1}/{num_samples} samples")
+            print(f"  Created {i + 1}/{num_samples} samples (zero-flow: {zero_flow_count})")
     
     # Save splits
     output_path = Path(output_path)

@@ -222,7 +222,7 @@ def ford_fulkerson_mincut_vessel(
     w = rng.random(size=A.shape)
     w = np.maximum(w, w.T) * adj
     
-    # Push INPUT with vessel features (not capacity!)
+    # Push INPUT with vessel features (replace A with vessel features, but keep w)
     probing.push(
         probes,
         _Stage.INPUT,
@@ -233,6 +233,7 @@ def ford_fulkerson_mincut_vessel(
             "length": np.copy(length),
             "distance": np.copy(distance),
             "curveness": np.copy(curveness),
+            "w": np.copy(w),  # Keep edge weights from original
             "adj": np.copy(adj),
         },
     )

@@ -80,11 +80,12 @@ SPECS = types.MappingProxyType(
             "pos": (_Stage.INPUT, _Location.NODE, _Type.SCALAR),
             "s": (_Stage.INPUT, _Location.NODE, _Type.MASK_ONE),
             "t": (_Stage.INPUT, _Location.NODE, _Type.MASK_ONE),
-            # Edge inputs - VESSEL FEATURES (replace capacity)
+            # Edge inputs - VESSEL FEATURES (replace capacity A, but keep w)
             # Names match VesselGraph edge_attr_keys: length, distance, curveness
             "length": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),     # vessel segment length
             "distance": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),   # Euclidean distance between nodes
             "curveness": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),  # vessel curveness (1.0 = straight)
+            "w": (_Stage.INPUT, _Location.EDGE, _Type.SCALAR),          # edge weights (kept from original)
             "adj": (_Stage.INPUT, _Location.EDGE, _Type.MASK),
             # Hints (same as ford_fulkerson_mincut)
             "mask": (_Stage.HINT, _Location.NODE, _Type.MASK),

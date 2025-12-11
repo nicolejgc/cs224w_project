@@ -373,12 +373,25 @@ def transfer(
     )
 
     # Load pretrained weights
-    # Note: strict=False is EXPECTED because:
-    # - Checkpoint has 'A', 'w' encoders (will be ignored)
-    # - Our model has 'length', 'distance', 'curveness' encoders (will stay random)
-    # - Backbone weights (processor, decoders) will be loaded
     print(f"Loading checkpoint: {checkpoint_path}")
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    
+    # Extract the A encoder weights BEFORE loading (we'll use them to initialize vessel encoders)
+    # Store separately for each sub-network (bfs_net vs flow_net have different weights!)
+    a_encoder_weights = {
+        'bfs_net': {},
+        'flow_net': {},
+        'main': {}
+    }
+    for key, value in checkpoint.items():
+        if 'encoders.A.' in key:
+            param_name = key.split('encoders.A.')[-1]  # e.g., "net.0.weight"
+            if 'bfs_net' in key:
+                a_encoder_weights['bfs_net'][param_name] = value.clone()
+            elif 'flow_net' in key:
+                a_encoder_weights['flow_net'][param_name] = value.clone()
+            else:
+                a_encoder_weights['main'][param_name] = value.clone()
     
     # Load with strict=False to handle encoder mismatch
     missing, unexpected = net.net_.load_state_dict(checkpoint, strict=False)
@@ -388,10 +401,58 @@ def transfer(
     print(f"  • Common encoders (pos, s, t, etc.): LOADED")
     if unexpected:
         print(f"  • Discarded from checkpoint: {[k.split('.')[2] for k in unexpected if 'encoders' in k]}")
-    if missing:
-        encoder_missing = [k.split('.')[2] for k in missing if 'encoders' in k]
-        if encoder_missing:
-            print(f"  • New encoders (random init): {list(set(encoder_missing))}")
+    
+    # CRITICAL: Initialize new vessel encoders with A encoder's weights
+    # This ensures they produce embeddings in the same distribution as the frozen backbone expects
+    print(f"\n  A encoder weights found:")
+    for net_name, weights in a_encoder_weights.items():
+        if weights:
+            print(f"    {net_name}: {list(weights.keys())}")
+    
+    has_weights = any(w for w in a_encoder_weights.values())
+    if has_weights:
+        # CRITICAL: Scale weights by 1/N where N = number of vessel features
+        # Original model had 1 edge encoder (A), now we have 3 (length, distance, curveness)
+        # Since embeddings are SUMMED, we need to scale down to maintain similar magnitude
+        num_vessel_features = len(vessel_feature_list)
+        scale_factor = 1.0 / num_vessel_features
+        print(f"  Initializing vessel encoders from A encoder weights...")
+        print(f"  (Scaling by 1/{num_vessel_features} = {scale_factor:.3f} to match original embedding magnitude)")
+        
+        def init_encoder_from_A(encoder_dict, feature_name, net_name, weights_dict, scale):
+            """Copy A encoder weights to a new feature encoder, scaled."""
+            if feature_name not in encoder_dict:
+                return False
+            if not weights_dict:
+                print(f"    ⚠ {feature_name} ({net_name}): no A weights available")
+                return False
+                
+            encoder = encoder_dict[feature_name]
+            copied = 0
+            with torch.no_grad():
+                for param_name, param in encoder.named_parameters():
+                    if param_name in weights_dict:
+                        param.copy_(weights_dict[param_name] * scale)
+                        copied += 1
+                    else:
+                        print(f"      Warning: {param_name} not found in A weights for {net_name}")
+            if copied > 0:
+                print(f"    ✓ {feature_name} ({net_name}): copied {copied} params (scaled)")
+            return copied > 0
+        
+        # Initialize for each sub-network with CORRECT weights, SCALED
+        for feature in vessel_feature_list:
+            if hasattr(net.net_, 'bfs_net'):
+                init_encoder_from_A(net.net_.bfs_net.encoders, feature, "bfs_net", 
+                                   a_encoder_weights['bfs_net'], scale_factor)
+            if hasattr(net.net_, 'flow_net'):
+                init_encoder_from_A(net.net_.flow_net.encoders, feature, "flow_net",
+                                   a_encoder_weights['flow_net'], scale_factor)
+            if hasattr(net.net_, 'encoders'):
+                init_encoder_from_A(net.net_.encoders, feature, "main",
+                                   a_encoder_weights['main'], scale_factor)
+        
+        print(f"  • Vessel encoders: Initialized from A (scaled 1/{num_vessel_features})")
 
     # =========================================================================
     # PHASE 2: Verify vessel encoders are present
@@ -418,7 +479,7 @@ def transfer(
         vessel_present = all(f in current_encoders for f in vessel_feature_list)
         if vessel_present:
             print(f"✓ Vessel feature encoders present: {vessel_feature_list}")
-            print(f"  (These are randomly initialized - will be trained)")
+            print(f"  (Initialized from A encoder - will be fine-tuned)")
         else:
             missing = [f for f in vessel_feature_list if f not in current_encoders]
             print(f"⚠ Missing vessel encoders: {missing}")
@@ -490,6 +551,27 @@ def transfer(
         if hasattr(data, 'shape'):
             print(f"  Output '{out.name}': shape={data.shape}, min={data.min():.4f}, max={data.max():.4f}")
     print("--- End Sanity Check ---\n")
+    
+    # First epoch: detailed loss breakdown to debug
+    print("\n--- Detailed Loss Breakdown (first batch) ---")
+    debug_batch = tr_loader.next(1)
+    net.net_.train()
+    with torch.no_grad():
+        preds, hint_preds = net.net_(debug_batch.features)
+        
+        # Check prediction ranges
+        print("Prediction ranges:")
+        for name, pred in preds.items():
+            if hasattr(pred, 'shape'):
+                print(f"  {name}: shape={pred.shape}, min={pred.min():.4f}, max={pred.max():.4f}")
+        
+        # Check a few hint predictions
+        if hint_preds and len(hint_preds) > 0:
+            print("Hint prediction ranges (step 0):")
+            for name, pred in hint_preds[0].items():
+                if hasattr(pred, 'shape') and pred.numel() > 0:
+                    print(f"  {name}: min={pred.min():.4f}, max={pred.max():.4f}")
+    print("--- End Detailed Breakdown ---\n")
     
     best_loss = float('inf')
     for epoch in range(num_epochs):
