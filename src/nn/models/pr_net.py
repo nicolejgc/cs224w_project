@@ -236,12 +236,10 @@ class PRNet_Impl(torch.nn.Module):
 
     def op(self, trajectories, h_bfs, adj, phase):
         cand_bfs, h_bfs, h_preds_bfs = self.global_relabel_net.step(
-            trajectories, h_bfs, adj
+            trajectories, h_bfs, torch.transpose(adj, -1, -2)
         )
 
-        cand_pr, _, h_preds_pr = self.push_relabel_net.step(
-            trajectories, h_bfs, adj
-        )
+        cand_pr, _, h_preds_pr = self.push_relabel_net.step(trajectories, h_bfs, adj)
 
         # ignore updates to flow from bfs net
         for key in ["f", "f_h", "e"]:
@@ -310,6 +308,9 @@ class PRNet_Impl(torch.nn.Module):
         last_valid_hints = {
             hint.name: hint.data.to(self.device) for hint in next_hint(0)
         }
+        # Normalize initial h
+        if "h" in last_valid_hints:
+            last_valid_hints["h"] = last_valid_hints["h"] / num_nodes
 
         for i in range(num_steps):
             trajectories = [features.inputs]
@@ -351,10 +352,11 @@ class PRNet_Impl(torch.nn.Module):
 
                     h_preds[name] = pred
 
-                    if name == "h":
-                        pred_for_hint = pred * num_nodes
-                    else:
-                        pred_for_hint = pred
+                    # if name == "h":
+                    #     pred_for_hint = pred * num_nodes
+                    # else:
+                    #     pred_for_hint = pred
+                    pred_for_hint = pred
 
                     is_masked = (h_preds[name] == clrs.OutputClass.MASKED) * 1.0
                     last_valid_hints[name] = (

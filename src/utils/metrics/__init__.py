@@ -31,12 +31,12 @@ def mae(y_pred, y_true):
 
 
 def masked_mae(y_pred, y_true):
-    print("y_pred:")
-    print(y_pred.shape)
-    print(y_pred)
-    print("y_true:")
-    print(y_true.shape)
-    print(y_true)
+    # print("y_pred:")
+    # print(y_pred.shape)
+    # print(y_pred)
+    # print("y_true:")
+    # print(y_true.shape)
+    # print(y_true)
     mask = y_true != 0
     error = np.abs(y_pred - y_true)[mask].mean()
     return round(error, REGRESSION_ERROR_DECIMALS)

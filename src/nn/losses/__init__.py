@@ -244,6 +244,13 @@ def output_loss(preds, truth, feedback, alpha, device):
         )
 
         return loss
+    elif truth.location == _Location.NODE and truth.type_ == _Type.SCALAR:
+        if truth.name in ["h", "h_out"]:
+            num_nodes = y.shape[-1]
+            loss = (y_pred - (y / num_nodes)) ** 2
+        else:
+            loss = (y_pred - y) ** 2
+        return loss.mean()
 
     assert False
 

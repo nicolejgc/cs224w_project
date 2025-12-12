@@ -34,7 +34,7 @@ def preprocess(dp: _DataPoint, nb_nodes: int) -> _Tensor:
         return one_hot(dp.data.long(), nb_nodes).float()
 
     # Custom normalization for push relabel
-    if dp.name == "h":
+    if dp.name in ["h", "h_out"]:
         return dp.data / nb_nodes
     if dp.name in ["e"]:
         return torch.log1p(dp.data.abs())  # log(x + 1)

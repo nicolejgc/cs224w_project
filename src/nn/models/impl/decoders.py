@@ -139,14 +139,17 @@ def decode_from_latents(name, spec, decoder, h_t, adj, edge_attr):
     raise ValueError("Unrecognized specs during decoding from latents.")
 
 
-def postprocess(preds: Dict[str, _Tensor], spec: _Spec) -> Dict[str, _DataPoint]:
+def postprocess(preds: Dict[str, _Tensor], spec: _Spec, nb_nodes: int = None) -> Dict[str, _DataPoint]:
     result = {}
     for name in preds.keys():
         _, location, type_ = spec[name]
         data = preds[name]
 
         if type_ == _Type.SCALAR:
-            data = data
+            if name in ["h", "h_out"] and nb_nodes is not None:
+                data = data * nb_nodes
+            else:
+                data = data
         elif type_ == _Type.MASK:
             data = (data > 0.0) * 1.0
         elif type_ in [_Type.MASK_ONE, _Type.CATEGORICAL]:

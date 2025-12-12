@@ -133,7 +133,10 @@ class EncodeProcessDecode(clrs.Model):
     def predict(self, features: clrs.Features) -> Result:
         self.net_.eval()
         raw_preds, aux = self.net_(features)
-        preds = decoders.postprocess(raw_preds, self.spec)
+        
+        # Extract nb_nodes
+        b, n = _dimensions(features.inputs)
+        preds = decoders.postprocess(raw_preds, self.spec, nb_nodes=n)
         # print(preds)
 
         return preds, (raw_preds, aux)
@@ -225,12 +228,16 @@ class EncodeProcessDecode_Impl(Module):
         )
 
         if decode_hints:
+            print("DEBUG: Initializing hint decoders...")
             for hint in dummy_trajectory.features.hints:
+                print(f"DEBUG: Checking hint {hint.name}")
                 if self.no_feats(hint.name):
+                    print(f"DEBUG: Skipping hint {hint.name} (no_feats)")
                     continue
                 self.hint_decoders[hint.name] = decoders.new_decoder(
                     spec[hint.name], num_hidden, num_classes=hint.data.shape[-1]
                 )
+                print(f"DEBUG: Added hint decoder for {hint.name}")
 
         for out in dummy_trajectory.outputs:
             self.decoders[out.name] = decoders.new_decoder(

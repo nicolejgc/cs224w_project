@@ -42,8 +42,14 @@ def _hints_i(hints, i):
 
 
 def _own_hints_i(preds, spec, features, i):
-    hints = list(decoders.postprocess(preds, spec).values())
-    hints.append(_bfs_op_mask(_hints_i(features.hints, i)))
+    # Extract nb_nodes from features
+    # features.inputs is a list of DataPoints.
+    # We can use _dimensions(features.inputs)
+    b, n = _dimensions(features.inputs)
+    hints = list(decoders.postprocess(preds, spec, nb_nodes=n).values())
+    bfs_mask = _bfs_op_mask(_hints_i(features.hints, i))
+    if bfs_mask is not None:
+        hints.append(bfs_mask)
     return hints
 
 
