@@ -1,0 +1,18 @@
+# Transfer Learning Config for Ford-Fulkerson with Vessel Features
+# Use this after training on synthetic data with regular ffmc.one.yaml
+
+algorithm: ford_fulkerson_mincut_vessel  # Uses vessel feature specs
+runs:
+  num_runs: 1
+  hp_space: ff_mc_one  # Same hyperparameters as original
+  batch_size: 32
+  early_stop: true
+  early_stop_patience: 20
+  train_steps: 5000  # Fewer steps for transfer learning
+  verbose: true
+  log_every: 100
+experiment:
+  name: ffmc-vessel-transfer
+  higher_is_better: false
+  num_valid_trials: 1
+

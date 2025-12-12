@@ -176,6 +176,81 @@ def ford_fulkerson_mincut(A: _Array, s: int, t: int) -> _Out:
     return f, probes
 
 
+def ford_fulkerson_mincut_vessel(
+    length: _Array, 
+    distance: _Array, 
+    curveness: _Array, 
+    adj: _Array,
+    s: int, 
+    t: int
+) -> _Out:
+    """
+    Ford-Fulkerson min-cut with vessel features instead of capacity.
+    
+    For transfer learning: the algorithm runs the same, but inputs are vessel
+    features. The model learns to map vessel features -> effective capacity.
+    
+    Args:
+        length: [N, N] vessel segment lengths
+        distance: [N, N] Euclidean distances
+        curveness: [N, N] vessel tortuosity (1.0 = straight)
+        adj: [N, N] adjacency mask
+        s: source node
+        t: target node
+    
+    Returns:
+        f: final flow assignment
+        probes: algorithm trace with hints
+    """
+    chex.assert_rank(length, 2)
+    n = length.shape[0]
+    
+    # Use uniform capacity = 1.0 for all edges
+    # The MODEL learns to predict flow from vessel features
+    # Ground truth is computed with uniform capacity to keep flow values bounded
+    A = adj * 1.0  # All edges have capacity 1.0
+    
+    # Alternative: derive capacity from vessel features (normalized to [0,1])
+    # Uncomment to use: straighter, shorter vessels have higher capacity
+    # capacity_score = (1.0 - length) * curveness  # both in [0,1], higher = better
+    # A = adj * (0.1 + 0.9 * capacity_score)  # Capacity in [0.1, 1.0]
+    
+    probes = probing.initialize(SPECS["ford_fulkerson_mincut_vessel"])
+    A_pos = np.arange(n)
+    
+    rng = np.random.default_rng(0)
+    w = rng.random(size=A.shape)
+    w = np.maximum(w, w.T) * adj
+    
+    # Push INPUT with vessel features (replace A with vessel features, but keep w)
+    probing.push(
+        probes,
+        _Stage.INPUT,
+        next_probe={
+            "pos": np.copy(A_pos) * 1.0 / n,
+            "s": probing.mask_one(s, n),
+            "t": probing.mask_one(t, n),
+            "length": np.copy(length),
+            "distance": np.copy(distance),
+            "curveness": np.copy(curveness),
+            "w": np.copy(w),  # Keep edge weights from original
+            "adj": np.copy(adj),
+        },
+    )
+    
+    # Run Ford-Fulkerson with derived capacity
+    f, probes = _ff_impl(A, s, t, probes, w)
+    
+    # Output: flow and min-cut
+    probing.push(
+        probes, _Stage.OUTPUT, next_probe={"f": np.copy(f), "c": _minimum_cut(A, s, t)}
+    )
+    
+    probing.finalize(probes)
+    
+    return f, probes
+
+
 def _minimum_cut(A, s, t):
     C = np.zeros((A.shape[0], 2))
 
