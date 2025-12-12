@@ -351,11 +351,7 @@ class PRNet_Impl(torch.nn.Module):
                         pred = torch.nn.functional.softplus(pred)
 
                     h_preds[name] = pred
-
-                    # if name == "h":
-                    #     pred_for_hint = pred * num_nodes
-                    # else:
-                    #     pred_for_hint = pred
+                    
                     pred_for_hint = pred
 
                     is_masked = (h_preds[name] == clrs.OutputClass.MASKED) * 1.0

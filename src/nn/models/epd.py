@@ -46,6 +46,14 @@ class EncodeProcessDecode(clrs.Model):
         encode_hints: bool = True,
         max_steps: int | None = None,
     ):
+        """
+        Encode-Process-Decode (EPD) model for algorithmic reasoning.
+
+        This model implements the general algorithmic reasoning framework:
+        1. Encode: Map inputs to latent space.
+        2. Process: Perform algorithmic steps in latent space (MPNN/PGN).
+        3. Decode: Map latent state to outputs.
+        """
         super().__init__(spec=spec)
 
         self.device = "cpu"
@@ -83,11 +91,19 @@ class EncodeProcessDecode(clrs.Model):
         self.net_.load_state_dict(torch.load(path, map_location=device))
 
     def _train_step(self, feedback: _Feedback):
+        """
+        Performs a single training step.
+
+        Args:
+            feedback: The feedback object containing inputs, hints, and outputs.
+
+        Returns:
+            The total loss for the step.
+        """
         self.net_.train()
         self.optimizer.zero_grad()
 
         preds, hint_preds = self.net_(feedback.features)
-        # print(preds["f"].isnan().any().item())
         total_loss = 0.0
 
         n_hints = 0
@@ -126,11 +142,17 @@ class EncodeProcessDecode(clrs.Model):
         return total_loss.item()
 
     def feedback(self, feedback: _Feedback) -> float:
+        """
+        Processes feedback from the sampler/environment and updates the model.
+        """
         loss = self._train_step(feedback)
         return loss
 
     @torch.no_grad()
     def predict(self, features: clrs.Features) -> Result:
+        """
+        Predicts outputs given input features.
+        """
         self.net_.eval()
         raw_preds, aux = self.net_(features)
         
@@ -196,10 +218,6 @@ class EncodeProcessDecode_Impl(Module):
 
         self.no_feats = lambda x: x in no_feats or x.startswith("__")  # noqa
 
-        # # Added layer norms for stability...
-        # self.ln_x = torch.nn.LayerNorm(num_hidden)
-        # self.ln_h = torch.nn.LayerNorm(num_hidden)
-
         for inp in dummy_trajectory.features.inputs:
             if self.no_feats(inp.name):
                 continue
@@ -250,8 +268,6 @@ class EncodeProcessDecode_Impl(Module):
         self.to(device)
 
     def step(self, trajectories, h, adj):
-        # if torch.isnan(h).any():
-        #     raise ValueError("NaN detected in input hidden state 'h', bruh")
 
         # ~~~ init ~~~
         batch_size, num_nodes = _dimensions(trajectories[0])
@@ -271,11 +287,6 @@ class EncodeProcessDecode_Impl(Module):
                 if self.no_feats(dp.name) or dp.name not in self.encoders:
                     continue
 
-                # if torch.isnan(dp.data).any():
-                #     raise ValueError(
-                #         f"NaN detected in input feature '{dp.name}' from feedback, bruh"
-                #     )
-
                 if dp.data.abs().max() > 1e4:
                     print(
                         f"WARNING: Input '{dp.name}' has huge values: {dp.data.max()}"
@@ -287,23 +298,9 @@ class EncodeProcessDecode_Impl(Module):
                 x = encoders.accum_node_fts(encoder, dp, data, x)
                 edge_attr = encoders.accum_edge_fts(encoder, dp, data, edge_attr, adj)
 
-        # x = self.ln_x(x)
-        # h = self.ln_h(h)
-
-        # if torch.isnan(x).any():
-        #     raise ValueError("NaN detected in 'x' after encoding, bruh")
-        # if torch.isnan(edge_attr).any():
-        #     raise ValueError("NaN detected in 'edge_attr' after encoding, bruh")
-
         # ~~~ process ~~~
         z = torch.cat([x, h], dim=-1)
         hiddens = self.process(z, adj, edge_attr)
-
-        # if torch.isnan(hiddens).any():
-        #     print("z Stats:", z.mean(), z.std(), z.max())
-        #     print("x Stats:", x.mean(), x.std(), x.max())
-        #     print("h Stats:", h.mean(), h.std(), h.max())
-        #     raise ValueError("NaN detected in output from processor, bruh")
 
         h_t = torch.cat([z, hiddens], dim=-1)
         self.h_t = h_t

@@ -106,6 +106,13 @@ def bfs_sink_algorithm(A: np.ndarray, s: int, t: int, transpose: bool = True):
 
 
 class TrajSampler:
+    """
+    Sampler for generating synthetic graph trajectories for BFS experiments.
+
+    Generates random graphs using the two-community model and computes
+    BFS trajectories from a random source to a random sink.
+    """
+
     def __init__(self, algorithm, spec, num_samples, num_nodes):
         self.algorithm = algorithm
         self.spec = spec
